@@ -1049,6 +1049,63 @@ let () = define "int_land" (int @-> int @-> ret int) Ltac2Int.(land)
 let () = define "int_lor" (int @-> int @-> ret int)  Ltac2Int.(lor)
 let () = define "int_lxor" (int @-> int @-> ret int) Ltac2Int.(lxor)
 let () = define "int_lnot" (int @-> ret int) Ltac2Int.(lnot)
+
+(** Message *)
+
+module Ltac2Message = struct
+  let print m = Feedback.msg_notice m
+
+  let empty = Pp.mt ()
+  let of_string = Pp.str
+  let to_string = Pp.string_of_ppcmds
+
+  let of_int = Pp.int
+  let of_ident = Id.print
+  let of_constr c =
+    pf_apply @@ fun env sigma -> return (Printer.pr_econstr_env env sigma c)
+  let of_lconstr c =
+    pf_apply @@ fun env sigma -> return (Printer.pr_leconstr_env env sigma c)
+  let of_preterm c =
+    pf_apply @@ fun env sigma -> return (Printer.pr_closed_glob_env env sigma c)
+  let of_lpreterm c =
+    pf_apply @@ fun env sigma -> return (Printer.pr_closed_lglob_env env sigma c)
+  let of_exn v env sigma =
+    let open Tac2quote.Refs in
+    Tac2print.pr_valexpr env sigma v (GTypRef (Other t_exn, []))
+  let of_exninfo = CErrors.print_extra
+
+  let concat = Pp.app
+  let force_new_line = Pp.fnl ()
+  let break i j = Pp.brk (i, j)
+  let space = Pp.spc ()
+  let hbox = Pp.h
+  let vbox = Pp.v
+  let hvbox = Pp.hv
+  let hovbox = Pp.hov
+
+end
+
+let () = define "print" (pp @-> ret unit) Ltac2Message.print
+let () = define "message_empty" (ret pp) Ltac2Message.empty
+let () = define "message_of_int" (int @-> ret pp) Ltac2Message.of_int
+let () = define "message_of_ident" (ident @-> ret pp) Ltac2Message.of_ident
+let () = define "message_of_string" (string @-> ret pp) Ltac2Message.of_string
+let () = define "message_to_string" (pp @-> ret string) Ltac2Message.to_string
+let () = define "message_of_constr" (constr @-> tac pp) Ltac2Message.of_constr
+let () = define "message_of_lconstr" (constr @-> tac pp) Ltac2Message.of_lconstr
+let () = define "message_of_preterm" (preterm @-> tac pp) Ltac2Message.of_preterm
+let () = define "message_of_lpreterm" (preterm @-> tac pp) Ltac2Message.of_lpreterm
+let () = define "message_of_exn" (valexpr @-> eret pp) Ltac2Message.of_exn
+let () = define "message_of_exninfo" (exninfo @-> ret pp) Ltac2Message.of_exninfo
+
+let () = define "message_concat" (pp @-> pp @-> ret pp) Ltac2Message.concat
+let () = define "message_force_new_line" (ret pp) Ltac2Message.force_new_line
+let () = define "message_break" (int @-> int @-> ret pp) Ltac2Message.break
+let () = define "message_space" (ret pp) Ltac2Message.space
+let () = define "message_hbox" (pp @-> ret pp) Ltac2Message.hbox
+let () = define "message_vbox" (int @-> pp @-> ret pp) Ltac2Message.vbox
+let () = define "message_hvbox" (int @-> pp @-> ret pp) Ltac2Message.hvbox
+let () = define "message_hovbox" (int @-> pp @-> ret pp) Ltac2Message.hovbox
 (** Ltac2 API *)
 
 module Ltac2 = struct
@@ -1093,4 +1150,5 @@ module Ltac2 = struct
   module Ident            = Ltac2Ident
   module Ind              = Ltac2Ind
   module Int              = Ltac2Int
+  module Message          = Ltac2Message
 end

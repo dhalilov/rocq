@@ -64,8 +64,6 @@ let preterm_flags =
 
 (** Standard values *)
 
-open Tac2quote.Refs
-
 (** Helper functions *)
 
 let fatal_flag : unit Exninfo.t = Exninfo.make "fatal_flag"
@@ -128,59 +126,6 @@ let pf_apply ?(catch_exceptions=false) f =
   | _ :: _ :: _ ->
     throw Tac2ffi.err_notfocussed
 
-
-(** Printing *)
-
-let () = define "print" (pp @-> ret unit) Feedback.msg_notice
-
-let () = define "message_empty" (ret pp) (Pp.mt ())
-
-let () = define "message_of_int" (int @-> ret pp) Pp.int
-
-let () = define "message_of_string" (string @-> ret pp) Pp.str
-
-let () = define "message_to_string" (pp @-> ret string) Pp.string_of_ppcmds
-
-let () =
-  define "message_of_constr" (constr @-> tac pp) @@ fun c ->
-  pf_apply @@ fun env sigma -> return (Printer.pr_econstr_env env sigma c)
-
-let () =
-  define "message_of_lconstr" (constr @-> tac pp) @@ fun c ->
-  pf_apply @@ fun env sigma -> return (Printer.pr_leconstr_env env sigma c)
-
-let () =
-  define "message_of_preterm" (preterm @-> tac pp) @@ fun c ->
-  pf_apply @@ fun env sigma -> return (Printer.pr_closed_glob_env env sigma c)
-
-let () =
-  define "message_of_lpreterm" (preterm @-> tac pp) @@ fun c ->
-  pf_apply @@ fun env sigma -> return (Printer.pr_closed_lglob_env env sigma c)
-
-let () = define "message_of_ident" (ident @-> ret pp) Id.print
-
-let () = define "projection_print" (projection @-> ret pp) @@ fun p ->
-  Nametab.pr_global_env Id.Set.empty (ConstRef (Projection.constant p))
-
-let () =
-  define "message_of_exn" (valexpr @-> eret pp) @@ fun v env sigma ->
-  Tac2print.pr_valexpr env sigma v (GTypRef (Other t_exn, []))
-
-let () = define "message_concat" (pp @-> pp @-> ret pp) Pp.app
-
-let () = define "message_force_new_line" (ret pp) (Pp.fnl ())
-
-let () = define "message_break" (int @-> int @-> ret pp) (fun i j -> Pp.brk (i,j))
-
-let () = define "message_space" (ret pp) (Pp.spc())
-
-let () = define "message_hbox" (pp @-> ret pp) Pp.h
-
-let () = define "message_vbox" (int @-> pp @-> ret pp) Pp.v
-
-let () = define "message_hvbox" (int @-> pp @-> ret pp) Pp.hv
-
-let () = define "message_hovbox" (int @-> pp @-> ret pp) Pp.hov
 
 let () = define "format_stop" (ret format) []
 

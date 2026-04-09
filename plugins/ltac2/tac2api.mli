@@ -401,4 +401,31 @@ module Ltac2 : sig
     val ( lxor ) : int -> int -> int
     val lnot : int -> int
   end
+
+  module Message : sig
+    val print : message -> unit
+    val empty : message
+    val of_string : string -> message
+    val to_string : message -> string
+    val of_int : int -> message
+    val of_ident : ident -> message
+    val of_constr : constr -> message Proofview.tactic
+    val of_lconstr : constr -> message Proofview.tactic
+
+    val of_preterm : preterm -> message Proofview.tactic
+    val of_lpreterm : preterm -> message Proofview.tactic
+
+    val of_exn : valexpr -> Environ.env -> Evd.evar_map -> message
+    val of_exninfo : exninfo -> message
+
+    val concat : message -> message -> message
+    val force_new_line : message
+    val break : int -> int -> message
+    val space : message
+    val hbox : message -> message
+    val vbox : int -> message -> message
+    val hvbox : int -> message -> message
+    val hovbox : int -> message -> message
+
+  end
 end
