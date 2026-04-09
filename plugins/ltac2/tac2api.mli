@@ -8,6 +8,7 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
+open Tac2val
 open Names
 
 
@@ -42,4 +43,28 @@ module Ltac2 : sig
   type err = Exninfo.iexn
   type exn = Exninfo.iexn
   type exninfo = Exninfo.info
+
+  module Array : sig
+    val empty : valexpr
+
+    val make : int -> valexpr -> valexpr Proofview.tactic
+
+    val length : int * valexpr array -> int
+    val get : int * valexpr array -> int -> valexpr Proofview.tactic
+    val set : int * valexpr array -> int -> valexpr -> unit Proofview.tactic
+
+    val lowlevel_blit :
+      int * valexpr array ->
+      int ->
+      int * valexpr array ->
+      int ->
+      int ->
+      unit Proofview.tactic
+
+    val lowlevel_fill :
+      int * valexpr array -> int -> int -> valexpr -> unit Proofview.tactic
+
+    val concat :
+      (int * valexpr array) list -> valexpr
+  end
 end

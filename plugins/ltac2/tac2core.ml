@@ -15,9 +15,11 @@ open Tac2val
 open Tac2ffi
 open Tac2extffi
 open Tac2expr
+open Tac2externals
 open Proofview.Notations
 
 let ltac2_plugin = "rocq-runtime.plugins.ltac2"
+let define ?(plugin = ltac2_plugin) s = define { mltac_plugin = plugin; mltac_tactic = s }
 
 let constr_flags =
   let open Pretyping in
@@ -137,8 +139,6 @@ let fail ?(info = Exninfo.null) e =
   Proofview.tclZERO ~info e
 
 let return x = Proofview.tclUNIT x
-let pname ?(plugin=ltac2_plugin) s = { mltac_plugin = plugin; mltac_tactic = s }
-
 let catchable_exception = function
   | Logic_monad.Exception _ -> false
   | e -> CErrors.noncritical e
@@ -177,9 +177,6 @@ let pf_apply ?(catch_exceptions=false) f =
   | _ :: _ :: _ ->
     throw Tac2ffi.err_notfocussed
 
-open Tac2externals
-
-let define ?plugin s = define (pname ?plugin s)
 
 (** Printing *)
 
@@ -341,39 +338,6 @@ let () =
   if Int.equal arity 0 then eval []
   else return (Tac2ffi.of_closure (Tac2val.abstract arity eval))
 
-(** Array *)
-
-let () = define "array_empty" (ret valexpr) (v_blk 0 [||])
-
-let () =
-  define "array_make" (int @-> valexpr @-> tac valexpr) @@ fun n x ->
-  try return (v_blk 0 (Array.make n x)) with Invalid_argument _ -> throw Tac2ffi.err_outofbounds
-
-let () =
-  define "array_length" (block @-> ret int) @@ fun (_, v) -> Array.length v
-
-let () =
-  define "array_set" (block @-> int @-> valexpr @-> tac unit) @@ fun (_, v) n x ->
-  try Array.set v n x; return () with Invalid_argument _ -> throw Tac2ffi.err_outofbounds
-
-let () =
-  define "array_get" (block @-> int @-> tac valexpr) @@ fun (_, v) n ->
-  try return (Array.get v n) with Invalid_argument _ -> throw Tac2ffi.err_outofbounds
-
-let () =
-  define "array_blit"
-    (block @-> int @-> block @-> int @-> int @-> tac unit)
-    @@ fun (_, v0) s0 (_, v1) s1 l ->
-  try Array.blit v0 s0 v1 s1 l; return () with Invalid_argument _ ->
-  throw Tac2ffi.err_outofbounds
-
-let () =
-  define "array_fill" (block @-> int @-> int @-> valexpr @-> tac unit) @@ fun (_, d) s l v ->
-  try Array.fill d s l v; return () with Invalid_argument _ -> throw Tac2ffi.err_outofbounds
-
-let () =
-  define "array_concat" (list block @-> ret valexpr) @@ fun l ->
-  v_blk 0 (Array.concat (List.map snd l))
 
 (** Ident *)
 

@@ -10,6 +10,9 @@
 
 open Names
 
+val ltac2_plugin : string
+val define : ?plugin:string -> string -> ('a, 'b) Tac2externals.spec -> 'b -> unit
+
 val throw : ?info:Exninfo.info -> exn -> 'a Proofview.tactic
 
 (** [catch_exceptions] default false *)
