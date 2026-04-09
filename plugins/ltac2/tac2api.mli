@@ -81,4 +81,20 @@ module Ltac2 : sig
     val equal : t -> t -> bool
     val print : t -> message
   end
+
+  module Constr : sig
+    type t = constr
+
+    val type_ : t -> valexpr Proofview.tactic
+    val equal : t -> t -> bool Proofview.tactic
+
+
+    val in_context :
+      variable ->
+      t ->
+      (unit -> unit Proofview.tactic) ->
+      t Proofview.tactic
+
+    val has_evar : t -> bool Proofview.tactic
+  end
 end

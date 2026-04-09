@@ -417,20 +417,6 @@ let () =
 
 (** Terms *)
 
-(** constr -> constr *)
-let () =
-  define "constr_type" (constr @-> tac valexpr) @@ fun c ->
-  let get_type env sigma =
-    let (sigma, t) = Typing.type_of env sigma c in
-    let t = Tac2ffi.of_constr t in
-    Proofview.Unsafe.tclEVARS sigma <*> Proofview.tclUNIT t
-  in
-  pf_apply ~catch_exceptions:true get_type
-
-(** constr -> constr *)
-let () =
-  define "constr_equal" (constr @-> constr @-> tac bool) @@ fun c1 c2 ->
-  Proofview.tclEVARMAP >>= fun sigma -> return (EConstr.eq_constr sigma c1 c2)
 
 let () =
   define "constr_kind" (constr @-> eret valexpr) @@ fun c env sigma ->
@@ -682,44 +668,6 @@ let () = define "constr_cast_default" (ret valexpr) (of_cast DEFAULTcast)
 let () = define "constr_cast_vm" (ret valexpr) (of_cast VMcast)
 let () = define "constr_cast_native" (ret valexpr) (of_cast NATIVEcast)
 
-let () =
-  define "constr_in_context" (ident @-> constr @-> thunk unit @-> tac constr) @@ fun id t c ->
-  Proofview.Goal.goals >>= function
-  | [gl] ->
-    gl >>= fun gl ->
-    let env = Proofview.Goal.env gl in
-    let sigma = Proofview.Goal.sigma gl in
-    let has_var =
-      try
-        let _ = Environ.lookup_named id env in
-        true
-      with Not_found -> false
-    in
-    if has_var then
-      Tacticals.tclZEROMSG (str "Variable already exists")
-    else
-      let open Context.Named.Declaration in
-      let sigma, t_rel =
-        let t_ty = Retyping.get_type_of env sigma t in
-        (* If the user passed eg ['_] for the type we force it to indeed be a type *)
-        let sigma, j = Typing.type_judgment env sigma {uj_val=t; uj_type=t_ty} in
-        sigma, EConstr.ESorts.relevance_of_sort j.utj_type
-      in
-      let nenv = EConstr.push_named (LocalAssum (Context.make_annot id t_rel, t)) env in
-      let (sigma, (evt, s)) = Evarutil.new_type_evar nenv sigma Evd.univ_flexible in
-      let relevance = EConstr.ESorts.relevance_of_sort s in
-      let (sigma, evk) = Evarutil.new_pure_evar (Environ.named_context_val nenv) sigma ~relevance evt in
-      Proofview.Unsafe.tclEVARS sigma >>= fun () ->
-      Proofview.Unsafe.tclSETGOALS [Proofview.with_empty_state evk] >>= fun () ->
-      thaw c >>= fun _ ->
-      Proofview.Unsafe.tclSETGOALS [Proofview.goal_with_state (Proofview.Goal.goal gl) (Proofview.Goal.state gl)] >>= fun () ->
-      let args = EConstr.identity_subst_val (Environ.named_context_val env) in
-      let args = SList.cons (EConstr.mkRel 1) args in
-      let ans = EConstr.mkEvar (evk, args) in
-      return (EConstr.mkLambda (Context.make_annot (Name id) t_rel, t, ans))
-  | _ ->
-    throw Tac2ffi.err_notfocussed
-
 (** preterm -> constr *)
 
 let () = define "constr_flags" (ret pretype_flags) constr_flags
@@ -796,11 +744,6 @@ let () =
 let () = define "constr_relevance_relevant" (ret relevance) Sorts.Relevant
 
 let () = define "constr_relevance_irrelevant" (ret relevance) Sorts.Irrelevant
-
-let () =
-  define "constr_has_evar" (constr @-> tac bool) @@ fun c ->
-  Proofview.tclEVARMAP >>= fun sigma ->
-  return (Evarutil.has_undefined_evars sigma c)
 
 (** Uint63 *)
 

@@ -8,16 +8,20 @@
 (*         *     (see LICENSE file for the text of the license)         *)
 (************************************************************************)
 
+open Pp
 open Names
 open Tac2externals
 open Tac2ffi
 open Tac2val
 open Tac2core
+open Proofview.Notations
 
 (** Helper methods *)
 let v_blk = Valexpr.make_block
 
 let return = Proofview.tclUNIT
+
+let thaw f : _ Proofview.tactic = f ()
 
 (** Array *)
 
@@ -86,6 +90,72 @@ end
 let () = define "constant_equal" (constant @-> constant @-> ret bool) Ltac2Constant.equal
 let () = define "constant_print" (constant @-> ret pp) Ltac2Constant.print
 
+(** Constr *)
+
+module Ltac2Constr = struct
+  type t = EConstr.t
+
+  let type_ c =
+    let get_type env sigma =
+      let (sigma, t) = Typing.type_of env sigma c in
+      let t = Tac2ffi.of_constr t in
+      Proofview.Unsafe.tclEVARS sigma <*> Proofview.tclUNIT t
+    in
+    pf_apply ~catch_exceptions:true get_type
+
+  let equal c1 c2 =
+    Proofview.tclEVARMAP >>= fun sigma -> return (EConstr.eq_constr sigma c1 c2)
+
+
+  let in_context id t c =
+    Proofview.Goal.goals >>= function
+    | [gl] ->
+       gl >>= fun gl ->
+       let env = Proofview.Goal.env gl in
+       let sigma = Proofview.Goal.sigma gl in
+       let has_var =
+         try
+           let _ = Environ.lookup_named id env in
+           true
+         with Not_found -> false
+       in
+       if has_var then
+         Tacticals.tclZEROMSG (str "Variable already exists")
+       else
+         let open Context.Named.Declaration in
+         let sigma, t_rel =
+           let t_ty = Retyping.get_type_of env sigma t in
+           (* If the user passed eg ['_] for the type we force it to indeed be a type *)
+           let sigma, j = Typing.type_judgment env sigma {uj_val=t; uj_type=t_ty} in
+           sigma, EConstr.ESorts.relevance_of_sort j.utj_type
+         in
+         let nenv = EConstr.push_named (LocalAssum (Context.make_annot id t_rel, t)) env in
+         let (sigma, (evt, s)) = Evarutil.new_type_evar nenv sigma Evd.univ_flexible in
+         let relevance = EConstr.ESorts.relevance_of_sort s in
+         let (sigma, evk) = Evarutil.new_pure_evar (Environ.named_context_val nenv) sigma ~relevance evt in
+         Proofview.Unsafe.tclEVARS sigma >>= fun () ->
+         Proofview.Unsafe.tclSETGOALS [Proofview.with_empty_state evk] >>= fun () ->
+         thaw c >>= fun _ ->
+         Proofview.Unsafe.tclSETGOALS [Proofview.goal_with_state (Proofview.Goal.goal gl) (Proofview.Goal.state gl)] >>= fun () ->
+         let args = EConstr.identity_subst_val (Environ.named_context_val env) in
+         let args = SList.cons (EConstr.mkRel 1) args in
+         let ans = EConstr.mkEvar (evk, args) in
+         return (EConstr.mkLambda (Context.make_annot (Name id) t_rel, t, ans))
+    | _ ->
+       throw Tac2ffi.err_notfocussed
+
+
+  let has_evar c =
+    Proofview.tclEVARMAP >>= fun sigma ->
+    return (Evarutil.has_undefined_evars sigma c)
+end
+
+let () = define "constr_type" (constr @-> tac valexpr) Ltac2Constr.type_
+let () = define "constr_equal" (constr @-> constr @-> tac bool) Ltac2Constr.equal
+
+let () = define "constr_in_context" (ident @-> constr @-> thunk unit @-> tac constr) Ltac2Constr.in_context
+
+let () = define "constr_has_evar" (constr @-> tac bool) Ltac2Constr.has_evar
 (** Ltac2 API *)
 
 module Ltac2 = struct
@@ -120,4 +190,5 @@ module Ltac2 = struct
   module Array            = Ltac2Array
   module Char             = Ltac2Char
   module Constant         = Ltac2Constant
+  module Constr           = Ltac2Constr
 end
