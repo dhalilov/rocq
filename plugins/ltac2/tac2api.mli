@@ -459,4 +459,37 @@ module Ltac2 : sig
 
     val equal : t -> t -> bool
   end
+
+  module Module : sig
+    type t = ModPath.t
+
+    val equal : t -> t -> bool
+    val to_message : t -> message
+
+    val is_modtype : t -> Environ.env -> Evd.evar_map -> bool
+    val is_functor : t -> Environ.env -> Evd.evar_map -> bool
+    val is_bound_module : t -> bool
+    val is_library : t -> bool
+    val is_open : t -> bool
+
+    val parent_module : t -> t option
+
+    val module_of_reference : GlobRef.t -> t Proofview.tactic
+
+    val current_module : unit -> t
+    val loaded_libraries : unit -> t list
+
+    module Field : sig
+      type t = Tac2ffi.ModField.t
+
+      val handle :
+        t ->
+        (ModPath.t -> 'a)
+        * (GlobRef.t -> 'a)
+        * (unit -> 'a) ->
+        'a
+    end
+
+    val contents : t -> Field.t list option
+  end
 end

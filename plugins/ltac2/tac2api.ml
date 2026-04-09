@@ -1203,6 +1203,180 @@ module Ltac2Meta = struct
 end
 
 let () = define "meta_equal" (int @-> int @-> ret bool) Ltac2Meta.equal
+
+(** Module *)
+
+module Ltac2Module = struct
+  type t = ModPath.t
+
+  let equal = ModPath.equal
+  let to_message m =
+  (* XXX use ModPath.print instead? (nametab is ambiguous since there's no single nametab)
+     or expose ModPath.print as a separate external? *)
+  try Nametab.Modules.pr m
+  with Not_found ->
+  try Nametab.ModTypes.pr m
+  with Not_found ->
+  try Nametab.OpenMods.pr (DirOpenModule m)
+  with Not_found ->
+  try Nametab.OpenMods.pr (DirOpenModtype m)
+  with Not_found ->
+    CErrors.anomaly Pp.(str "Unknown module or modtype " ++ ModPath.print m)
+
+  let is_open m =
+    ModPath.subpath m (Global.current_modpath())
+
+  (* Find info about open module [m] in [senv_l] describing the open
+     modules of some safe env with current module [senv_m].
+     Returns [None] if [m] is the library, [Some v] if [m] is some inner open module. *)
+  let rec find_openmod m senv_m senv_l =
+    let open ModPath in
+    match senv_m, senv_l with
+    | MPbound _, _ -> assert false
+    | MPfile _, [] -> assert (ModPath.equal m senv_m); None
+    | MPfile _, _ :: _ -> assert false
+    | MPdot (m0, _), is_modtype :: rest ->
+       if ModPath.equal m senv_m then Some is_modtype
+       else find_openmod m m0 rest
+    | MPdot _, [] -> assert false
+
+  (* Assuming [m] is currently open, tell whether it is modtype. *)
+  let open_module_is_modtype m =
+    let senv = Global.safe_env() in
+    match find_openmod m (Safe_typing.current_modpath senv) (Safe_typing.module_is_modtype senv) with
+    | None -> false
+    | Some b -> b
+
+  let open_module_is_functor m =
+    let senv = Global.safe_env() in
+    match find_openmod m (Safe_typing.current_modpath senv) (Safe_typing.module_num_parameters senv) with
+    | None -> false
+    | Some nparams -> not (Int.equal nparams 0)
+
+  let is_modtype m env _ =
+    if is_open m then open_module_is_modtype m
+    else
+      try ignore (Environ.lookup_modtype m env); true
+      with Not_found -> false
+
+  let is_functor m env _ =
+    if is_open m then open_module_is_functor m
+    else
+      let modbody_is_functor m = match Mod_declarations.mod_type m with
+        | NoFunctor _ -> false
+        | MoreFunctor _ -> true
+      in
+      match Environ.lookup_module m env with
+      | m -> modbody_is_functor m
+      | exception Not_found -> match Environ.lookup_modtype m env with
+                               | m -> modbody_is_functor m
+                               | exception Not_found -> assert false
+
+  let is_bound_module = function
+  | MPbound _ -> true
+  | MPfile _ | MPdot _ -> false
+
+  let is_library = function
+  | MPfile _ -> true
+  | MPbound _ | MPdot _ -> false
+
+  let parent_module = function
+  | MPdot (m, _) -> Some m
+  | MPbound _ | MPfile _ -> None
+
+  open GlobRef
+  let module_of_reference = function
+  | VarRef _ -> throw (Invalid_argument "module_of_reference")
+  | ConstRef c -> return (Constant.modpath c)
+  | IndRef (mind,_) | ConstructRef ((mind,_),_) -> return (MutInd.modpath mind)
+
+  let current_module () = Global.current_modpath ()
+
+  let loaded_libraries () =
+    List.map (fun dp -> MPfile dp) (Library.loaded_libraries())
+
+  module Field = struct
+    open ModField
+    type t = ModField.t
+
+    let handle f handler =
+      let (handle_submodule, handle_reference, handle_rewrule) = handler in
+      match f with
+      | Ref x -> handle_reference x
+      | Submodule x -> handle_submodule x
+      | Rewrule -> handle_rewrule ()
+  end
+
+  let openmod_revstruct m senv =
+    let rec close senv modtype =
+      let curm = Safe_typing.current_modpath senv in
+      if ModPath.equal m curm then senv
+      else
+        let l = match curm with
+          | MPdot (_, l) -> l
+          | _ -> assert false
+        in
+        match modtype with
+        | [] -> assert false
+        | false :: modtype ->
+           (* None: type constraint of submodule doesn't matter since we
+              will anyway only return "Submodule M" and not look at its
+              contents *)
+           close (snd @@ Safe_typing.end_module l None senv) modtype
+        | true :: modtype -> close (snd @@ Safe_typing.end_modtype l senv) modtype
+    in
+    let modtype = Safe_typing.module_is_modtype senv in
+    let senv = close senv modtype in
+    Safe_typing.structure_body_of_safe_env senv
+
+  let contents m =
+    let body =
+      if is_open m then
+        (* XXX not sure what this does with side effects *)
+        Some (List.rev (openmod_revstruct m (Global.safe_env())))
+      else
+        match Environ.lookup_module m (Global.env()) with
+        | exception Not_found -> (* modtype *) None
+        | body -> match Mod_declarations.mod_type body with
+                  | MoreFunctor _ -> (* functor *) None
+                  | NoFunctor body -> Some body
+    in
+    let to_field (lab, f) : ModField.t = match (f:_ Declarations.structure_field_body) with
+      | SFBconst _ ->
+         let kn = KerName.make m lab in
+         Ref (ConstRef (Global.constant_of_delta_kn kn))
+      | SFBmind _ ->
+         let kn = KerName.make m lab in
+         Ref (IndRef ((Global.mind_of_delta_kn kn, 0)))
+      | SFBrules _ -> Rewrule
+      | SFBmodule _ -> Submodule (MPdot (m, lab))
+      | SFBmodtype _ -> Submodule (MPdot (m, lab))
+    in
+    Option.map (List.map to_field) body
+end
+
+let () = define "module_equal" (modpath @-> modpath @-> ret bool) Ltac2Module.equal
+let () = define "module_to_message" (modpath @-> ret pp) Ltac2Module.to_message
+
+let () = define "module_is_modtype" (modpath @-> eret bool) Ltac2Module.is_modtype
+let () = define "module_is_functor" (modpath @-> eret bool) Ltac2Module.is_functor
+let () = define "module_is_bound_module" (modpath @-> ret bool) Ltac2Module.is_bound_module
+let () = define "module_is_library" (modpath @-> ret bool) Ltac2Module.is_library
+let () = define "module_is_open" (modpath @-> ret bool) Ltac2Module.is_open
+
+let () = define "module_parent_module" (modpath @-> ret (option modpath)) Ltac2Module.parent_module
+
+let () = define "module_of_reference" (reference @-> tac modpath) Ltac2Module.module_of_reference
+
+let () = define "current_module" (unit @-> ret modpath) Ltac2Module.current_module
+
+let () = define "module_loaded_libraries" (unit @-> ret (list modpath)) Ltac2Module.loaded_libraries
+
+let module_field_handler = triple (fun1 modpath valexpr) (fun1 reference valexpr) (fun1 unit valexpr)
+
+let () = define "module_field_handle" (module_field @-> module_field_handler @-> tac valexpr) Ltac2Module.Field.handle
+
+let () = define "module_contents" (modpath @-> ret (option (list module_field))) Ltac2Module.contents
 (** Ltac2 API *)
 
 module Ltac2 = struct
@@ -1249,4 +1423,5 @@ module Ltac2 = struct
   module Int              = Ltac2Int
   module Message          = Ltac2Message
   module Meta             = Ltac2Meta
+  module Module           = Ltac2Module
 end
