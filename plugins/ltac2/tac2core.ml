@@ -369,47 +369,6 @@ let () =
   define "pstring_equal" (pstring @-> pstring @-> ret bool) Pstring.equal;
   define "pstring_compare" (pstring @-> pstring @-> ret int) Pstring.compare
 
-(** preterm -> constr *)
-
-let () = define "constr_flags" (ret pretype_flags) constr_flags
-
-let () =
-  define "pretype_flags_set_use_coercions"
-    (bool @-> pretype_flags @-> ret pretype_flags) @@ fun b flags ->
-  { flags with use_coercions = b }
-
-let () =
-  define "pretype_flags_set_use_typeclasses"
-    (bool @-> pretype_flags @-> ret pretype_flags) @@ fun b flags ->
-  { flags with use_typeclasses = if b then UseTC else NoUseTC }
-
-let () =
-  define "pretype_flags_set_allow_evars"
-    (bool @-> pretype_flags @-> ret pretype_flags) @@ fun b flags ->
-  { flags with fail_evar = not b }
-
-let () =
-  define "pretype_flags_set_nf_evars"
-    (bool @-> pretype_flags @-> ret pretype_flags) @@ fun b flags ->
-  { flags with expand_evars = b }
-
-let () = define "expected_istype" (ret expected_type) IsType
-
-let () = define "expected_oftype" (constr @-> ret expected_type) @@ fun c ->
-  OfType c
-
-let () = define "expected_without_type_constraint" (ret expected_type)
-    WithoutTypeConstraint
-
-let () =
-  define "constr_pretype" (pretype_flags @-> expected_type @-> preterm @-> tac constr) @@ fun flags expected_type c ->
-  let pretype env sigma =
-    let sigma, t = Pretyping.understand_uconstr ~flags ~expected_type env sigma c in
-    Proofview.Unsafe.tclEVARS sigma <*> Proofview.tclUNIT t
-  in
-  pf_apply ~catch_exceptions:true pretype
-
-
 (** Uint63 *)
 
 let () = define "uint63_compare" (uint63 @-> uint63 @-> ret int) Uint63.compare

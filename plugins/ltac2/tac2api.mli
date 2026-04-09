@@ -162,6 +162,35 @@ module Ltac2 : sig
       (unit -> unit Proofview.tactic) ->
       t Proofview.tactic
 
+    module Pretype : sig
+      type expected_type = Pretyping.typing_constraint
+
+      module Flags : sig
+        type t = Pretyping.inference_flags
+
+        val constr_flags : t
+
+        val set_use_coercion : bool -> t -> t
+        val set_use_typeclasses : bool -> t -> t
+        val set_allow_evars : bool -> t -> t
+        val set_nf_evars : bool -> t -> t
+      end
+
+      val expected_istype : expected_type
+
+      val expected_oftype :
+        constr -> expected_type
+
+      val expected_without_type_constraint :
+        expected_type
+
+      val pretype :
+        Flags.t ->
+        expected_type ->
+        preterm ->
+        constr Proofview.tactic
+    end
+
     val has_evar : t -> bool Proofview.tactic
   end
 end

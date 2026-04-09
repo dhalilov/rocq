@@ -486,6 +486,39 @@ module Ltac2Constr = struct
     | _ ->
        throw Tac2ffi.err_notfocussed
 
+  module Pretype = struct
+    open Pretyping
+    type expected_type = Pretyping.typing_constraint
+
+    module Flags = struct
+      type t = Pretyping.inference_flags
+
+      let constr_flags = Tac2core.constr_flags
+
+      let set_use_coercion b (flags: t) =
+        { flags with use_coercions = b }
+
+      let set_use_typeclasses b flags =
+        { flags with use_typeclasses = if b then UseTC else NoUseTC }
+
+      let set_allow_evars b flags =
+        { flags with fail_evar = not b }
+
+      let set_nf_evars b flags =
+        { flags with expand_evars = b }
+    end
+
+    let expected_istype = IsType
+    let expected_oftype c = OfType c
+    let expected_without_type_constraint = WithoutTypeConstraint
+
+    let pretype flags expected_type c =
+      let pretype env sigma =
+        let sigma, t = Pretyping.understand_uconstr ~flags ~expected_type env sigma c in
+        Proofview.Unsafe.tclEVARS sigma <*> Proofview.tclUNIT t
+      in
+      pf_apply ~catch_exceptions:true pretype
+  end
 
   let has_evar c =
     Proofview.tclEVARMAP >>= fun sigma ->
@@ -525,6 +558,23 @@ let () = define "constr_cast_vm" (ret valexpr) Ltac2Constr.Cast.vm
 let () = define "constr_cast_native" (ret valexpr) Ltac2Constr.Cast.native
 
 let () = define "constr_in_context" (ident @-> constr @-> thunk unit @-> tac constr) Ltac2Constr.in_context
+
+let () = define "constr_flags" (ret pretype_flags)
+           Ltac2Constr.Pretype.Flags.constr_flags
+let () = define "pretype_flags_set_use_coercions" (bool @-> pretype_flags @-> ret pretype_flags)
+           Ltac2Constr.Pretype.Flags.set_use_coercion
+let () = define "pretype_flags_set_use_typeclasses" (bool @-> pretype_flags @-> ret pretype_flags)
+           Ltac2Constr.Pretype.Flags.set_use_typeclasses
+let () = define "pretype_flags_set_allow_evars" (bool @-> pretype_flags @-> ret pretype_flags)
+           Ltac2Constr.Pretype.Flags.set_allow_evars
+let () = define "pretype_flags_set_nf_evars" (bool @-> pretype_flags @-> ret pretype_flags)
+           Ltac2Constr.Pretype.Flags.set_nf_evars
+
+let () = define "expected_istype" (ret expected_type) Ltac2Constr.Pretype.expected_istype
+let () = define "expected_oftype" (constr @-> ret expected_type) Ltac2Constr.Pretype.expected_oftype
+let () = define "expected_without_type_constraint" (ret expected_type) Ltac2Constr.Pretype.expected_without_type_constraint
+
+let () = define "constr_pretype" (pretype_flags @-> expected_type @-> preterm @-> tac constr) Ltac2Constr.Pretype.pretype
 
 let () = define "constr_has_evar" (constr @-> tac bool) Ltac2Constr.has_evar
 (** Ltac2 API *)
