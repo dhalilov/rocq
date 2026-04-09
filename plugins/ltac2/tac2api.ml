@@ -1508,6 +1508,38 @@ let () = define "projection_of_constant" (constant @-> ret (option projection)) 
 let () = define "projection_to_constant" (projection @-> ret (option constant)) Ltac2Proj.to_constant
 
 let () = define "projection_print" (projection @-> ret pp) Ltac2Proj.print
+
+(** Pstring *)
+
+module Ltac2Pstring = struct
+  type t = Pstring.t
+  type char63 = Uint63.t
+
+  let max_length = Pstring.max_length
+
+  let to_string = Pstring.to_string
+  let of_string = Pstring.of_string
+
+  let make   = Pstring.make
+  let length = Pstring.length
+  let get    = Pstring.get
+  let sub    = Pstring.sub
+  let cat    = Pstring.cat
+
+  let equal   = Pstring.equal
+  let compare = Pstring.compare
+end
+
+let () = define "pstring_max_length" (ret uint63) Ltac2Pstring.max_length
+let () = define "pstring_to_string" (pstring @-> ret string) Ltac2Pstring.to_string
+let () = define "pstring_of_string" (string @-> ret (option pstring)) Ltac2Pstring.of_string
+let () = define "pstring_make" (uint63 @-> uint63 @-> ret pstring) Ltac2Pstring.make
+let () = define "pstring_length" (pstring @-> ret uint63) Ltac2Pstring.length
+let () = define "pstring_get" (pstring @-> uint63 @-> ret uint63) Ltac2Pstring.get
+let () = define "pstring_sub" (pstring @-> uint63 @-> uint63 @-> ret pstring) Ltac2Pstring.sub
+let () = define "pstring_cat" (pstring @-> pstring @-> ret pstring) Ltac2Pstring.cat
+let () = define "pstring_equal" (pstring @-> pstring @-> ret bool) Ltac2Pstring.equal
+let () = define "pstring_compare" (pstring @-> pstring @-> ret int) Ltac2Pstring.compare
 (** Ltac2 API *)
 
 module Ltac2 = struct
@@ -1557,4 +1589,5 @@ module Ltac2 = struct
   module Module           = Ltac2Module
   module Pattern          = Ltac2Pattern
   module Proj             = Ltac2Proj
+  module Pstring          = Ltac2Pstring
 end

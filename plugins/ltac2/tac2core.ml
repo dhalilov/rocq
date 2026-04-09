@@ -145,19 +145,6 @@ let () = define "string_equal" (bytes @-> bytes @-> ret bool) Bytes.equal
 
 let () = define "string_compare" (bytes @-> bytes @-> ret int) Bytes.compare
 
-(** Pstring *)
-
-let () =
-  define "pstring_max_length" (ret uint63) Pstring.max_length;
-  define "pstring_to_string" (pstring @-> ret string) Pstring.to_string;
-  define "pstring_of_string" (string @-> ret (option pstring)) Pstring.of_string;
-  define "pstring_make" (uint63 @-> uint63 @-> ret pstring) Pstring.make;
-  define "pstring_length" (pstring @-> ret uint63) Pstring.length;
-  define "pstring_get" (pstring @-> uint63 @-> ret uint63) Pstring.get;
-  define "pstring_sub" (pstring @-> uint63 @-> uint63 @-> ret pstring) Pstring.sub;
-  define "pstring_cat" (pstring @-> pstring @-> ret pstring) Pstring.cat;
-  define "pstring_equal" (pstring @-> pstring @-> ret bool) Pstring.equal;
-  define "pstring_compare" (pstring @-> pstring @-> ret int) Pstring.compare
 
 (** Uint63 *)
 

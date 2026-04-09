@@ -531,4 +531,20 @@ module Ltac2 : sig
 
     val print : t -> message
   end
+
+  module Pstring : sig
+    type t = pstring
+    type char63 = uint63
+
+    val max_length : uint63
+    val to_string : t -> string
+    val of_string : string -> t option
+    val make : uint63 -> char63 -> t
+    val length : t -> uint63
+    val get : t -> uint63 -> char63
+    val sub : t -> uint63 -> uint63 -> t
+    val cat : t -> t -> t
+    val equal : t -> t -> bool
+    val compare : t -> t -> int
+  end
 end
