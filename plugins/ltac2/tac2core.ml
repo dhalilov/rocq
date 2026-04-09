@@ -208,9 +208,6 @@ let () =
 
 let () = define "message_of_ident" (ident @-> ret pp) Id.print
 
-let () = define "constant_print" (constant @-> ret pp) @@ fun c ->
-  Nametab.pr_global_env Id.Set.empty (ConstRef c)
-
 let () = define "projection_print" (projection @-> ret pp) @@ fun p ->
   Nametab.pr_global_env Id.Set.empty (ConstRef (Projection.constant p))
 
@@ -822,10 +819,6 @@ let () = define "uint63_equal" (uint63 @-> uint63 @-> ret bool) Uint63.equal
 let () = define "meta_equal" (int @-> int @-> ret bool) Int.equal
 let () = define "constr_cast_equal" (cast @-> cast @-> ret bool) Glob_ops.cast_kind_eq
 
-let () =
-  define "constant_equal"
-    (constant @-> constant @-> ret bool)
-    Constant.UserOrd.equal
 let () =
   define "constr_case_equal" (case @-> case @-> ret bool) @@ fun x y ->
   Ind.UserOrd.equal x.ci_ind y.ci_ind

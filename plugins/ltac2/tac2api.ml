@@ -75,6 +75,17 @@ end
 let () = define "char_of_int" (int @-> tac char) Ltac2Char.of_int
 let () = define "char_to_int" (char @-> ret int) Ltac2Char.to_int
 
+(** Constant *)
+
+module Ltac2Constant = struct
+  type t = Constant.t
+  let equal = Constant.UserOrd.equal
+  let print c = Nametab.pr_global_env Id.Set.empty (ConstRef c)
+end
+
+let () = define "constant_equal" (constant @-> constant @-> ret bool) Ltac2Constant.equal
+let () = define "constant_print" (constant @-> ret pp) Ltac2Constant.print
+
 (** Ltac2 API *)
 
 module Ltac2 = struct
@@ -108,4 +119,5 @@ module Ltac2 = struct
 
   module Array            = Ltac2Array
   module Char             = Ltac2Char
+  module Constant         = Ltac2Constant
 end

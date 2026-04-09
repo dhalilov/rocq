@@ -74,4 +74,11 @@ module Ltac2 : sig
     val of_int : int -> t Proofview.tactic
     val to_int : t -> int
   end
+
+  module Constant : sig
+    type t = constant
+
+    val equal : t -> t -> bool
+    val print : t -> message
+  end
 end
