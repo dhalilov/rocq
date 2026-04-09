@@ -925,6 +925,79 @@ end
 let () = define "ident_equal" (ident @-> ident @-> ret bool) Ltac2Ident.equal
 let () = define "ident_to_string" (ident @-> ret string) Ltac2Ident.to_string
 let () = define "ident_of_string" (string @-> ret (option ident)) Ltac2Ident.of_string
+
+(** Ind *)
+
+module Ltac2Ind = struct
+  type t = Ind.t
+  type data = t * Declarations.mutual_inductive_body
+
+  let equal = Ind.UserOrd.equal
+  let data ind =
+    Proofview.tclENV >>= fun env ->
+    if Environ.mem_mind (fst ind) env then
+      return (ind, Environ.lookup_mind (fst ind) env)
+    else
+      throw Tac2ffi.err_notfound
+
+  let repr = fst
+  let index = snd
+
+  let nblocks (_, mib) = Array.length mib.Declarations.mind_packets
+  let nconstructors ((_, n), mib) =
+    Array.length Declarations.(mib.mind_packets.(n).mind_consnames)
+
+  let get_block (ind, mib) n =
+    if 0 <= n && n < Array.length mib.Declarations.mind_packets then
+      return ((fst ind, n), mib)
+    else throw Tac2ffi.err_notfound
+
+  let get_constructor ((mind, n), mib) i =
+    let open Declarations in
+    let ncons = Array.length mib.mind_packets.(n).mind_consnames in
+    if 0 <= i && i < ncons then
+      (* WARNING: In the ML API constructors are indexed from 1 for historical
+         reasons, but Ltac2 uses 0-indexing instead. *)
+      return ((mind, n), i + 1)
+    else throw Tac2ffi.err_notfound
+
+  let nparams (_, mib) = mib.Declarations.mind_nparams
+  let nparams_uniform (_, mib) = mib.Declarations.mind_nparams_rec
+
+  let get_projections (ind,mib) =
+    Declareops.inductive_make_projections ind mib
+    |> Option.map (Array.map (fun (p,_) -> Projection.make p false))
+
+  let constructor_nargs ((_,i),mib) =
+    let open Declarations in
+    mib.mind_packets.(i).mind_consnrealargs
+
+  let constructor_ndecls ((_,i),mib) =
+    let open Declarations in
+    mib.mind_packets.(i).mind_consnrealdecls
+
+  let print ind = Nametab.pr_global_env Id.Set.empty (IndRef ind)
+end
+
+let () = define "ind_equal" (inductive @-> inductive @-> ret bool) Ltac2Ind.equal
+let () = define "ind_data" (inductive @-> tac ind_data) Ltac2Ind.data
+let () = define "ind_repr" (ind_data @-> ret inductive) Ltac2Ind.repr
+let () = define "ind_index" (inductive @-> ret int) Ltac2Ind.index
+
+let () = define "ind_nblocks" (ind_data @-> ret int) Ltac2Ind.nblocks
+let () = define "ind_nconstructors" (ind_data @-> ret int) Ltac2Ind.nconstructors
+
+let () = define "ind_get_block" (ind_data @-> int @-> tac ind_data) Ltac2Ind.get_block
+let () = define "ind_get_constructor" (ind_data @-> int @-> tac constructor) Ltac2Ind.get_constructor
+let () = define "ind_get_nparams" (ind_data @-> ret int) Ltac2Ind.nparams
+let () = define "ind_get_nparams_rec" (ind_data @-> ret int) Ltac2Ind.nparams_uniform
+
+let () = define "ind_get_projections" (ind_data @-> ret (option (array projection))) Ltac2Ind.get_projections
+
+let () = define "constructor_nargs" (ind_data @-> ret (array int)) Ltac2Ind.constructor_nargs
+let () = define "constructor_ndecls" (ind_data @-> ret (array int)) Ltac2Ind.constructor_ndecls
+
+let () = define "ind_print" (inductive @-> ret pp) Ltac2Ind.print
 (** Ltac2 API *)
 
 module Ltac2 = struct
@@ -967,4 +1040,5 @@ module Ltac2 = struct
   module Float            = Ltac2Float
   module Fresh            = Ltac2Fresh
   module Ident            = Ltac2Ident
+  module Ind              = Ltac2Ind
 end

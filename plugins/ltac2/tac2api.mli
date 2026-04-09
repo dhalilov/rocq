@@ -351,4 +351,33 @@ module Ltac2 : sig
     val to_string : ident -> string
     val of_string : string -> ident option
   end
+
+  module Ind : sig
+    type t = inductive
+    type data = inductive * Declarations.mutual_inductive_body
+
+    val equal : t -> t -> bool
+
+    val data : t -> data Proofview.tactic
+
+    val repr : data -> t
+    val index : t -> int
+    val nblocks : data -> int
+
+    val nconstructors : data -> int
+
+    val get_block : data -> int -> data Proofview.tactic
+
+    val get_constructor : data -> int -> constructor Proofview.tactic
+
+    val nparams : data -> int
+    val nparams_uniform : data -> int
+
+    val get_projections : data -> projection array option
+
+    val constructor_nargs : data -> int array
+    val constructor_ndecls : data -> int array
+
+    val print : t -> message
+  end
 end

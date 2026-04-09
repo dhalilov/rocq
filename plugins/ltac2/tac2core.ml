@@ -162,9 +162,6 @@ let () = define "message_of_ident" (ident @-> ret pp) Id.print
 let () = define "projection_print" (projection @-> ret pp) @@ fun p ->
   Nametab.pr_global_env Id.Set.empty (ConstRef (Projection.constant p))
 
-let () = define "ind_print" (inductive @-> ret pp) @@ fun ind ->
-  Nametab.pr_global_env Id.Set.empty (IndRef ind)
-
 let () =
   define "message_of_exn" (valexpr @-> eret pp) @@ fun v env sigma ->
   Tac2print.pr_valexpr env sigma v (GTypRef (Other t_exn, []))
@@ -469,80 +466,6 @@ let () =
 let () = define "message_of_exninfo" (exninfo @-> ret pp) CErrors.print_extra
 
 
-(** Ind *)
-
-let () =
-  define "ind_equal" (inductive @-> inductive @-> ret bool) Ind.UserOrd.equal
-
-let () =
-  define "ind_data"
-    (inductive @-> tac ind_data)
-    @@ fun ind ->
-  Proofview.tclENV >>= fun env ->
-  if Environ.mem_mind (fst ind) env then
-    return (ind, Environ.lookup_mind (fst ind) env)
-  else
-    throw Tac2ffi.err_notfound
-
-let () = define "ind_repr" (ind_data @-> ret inductive) fst
-let () = define "ind_index" (inductive @-> ret int) snd
-
-let () =
-  define "ind_nblocks" (ind_data @-> ret int) @@ fun (_, mib) ->
-  Array.length mib.Declarations.mind_packets
-
-let () =
-  define "ind_nconstructors" (ind_data @-> ret int) @@ fun ((_, n), mib) ->
-  Array.length Declarations.(mib.mind_packets.(n).mind_consnames)
-
-let () =
-  define "ind_get_block"
-    (ind_data @-> int @-> tac ind_data)
-    @@ fun (ind, mib) n ->
-  if 0 <= n && n < Array.length mib.Declarations.mind_packets then
-    return ((fst ind, n), mib)
-  else throw Tac2ffi.err_notfound
-
-let () =
-  define "ind_get_constructor"
-    (ind_data @-> int @-> tac constructor)
-    @@ fun ((mind, n), mib) i ->
-  let open Declarations in
-  let ncons = Array.length mib.mind_packets.(n).mind_consnames in
-  if 0 <= i && i < ncons then
-    (* WARNING: In the ML API constructors are indexed from 1 for historical
-       reasons, but Ltac2 uses 0-indexing instead. *)
-    return ((mind, n), i + 1)
-  else throw Tac2ffi.err_notfound
-
-let () =
-  define "ind_get_nparams"
-    (ind_data @-> ret int) @@ fun (_, mib) ->
-  mib.Declarations.mind_nparams
-
-let () =
-  define "ind_get_nparams_rec"
-    (ind_data @-> ret int) @@ fun (_, mib) ->
-  mib.Declarations.mind_nparams_rec
-
-
-let () =
-  define "constructor_nargs"
-    (ind_data @-> ret (array int)) @@ fun ((_,i),mib) ->
-  let open Declarations in
-  mib.mind_packets.(i).mind_consnrealargs
-
-let () =
-  define "constructor_ndecls"
-    (ind_data @-> ret (array int)) @@ fun ((_,i),mib) ->
-  let open Declarations in
-  mib.mind_packets.(i).mind_consnrealdecls
-
-let () =
-  define "ind_get_projections" (ind_data @-> ret (option (array projection)))
-  @@ fun (ind,mib) ->
-  Declareops.inductive_make_projections ind mib
-  |> Option.map (Array.map (fun (p,_) -> Projection.make p false))
 
 (** Schemes *)
 
