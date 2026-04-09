@@ -998,6 +998,57 @@ let () = define "constructor_nargs" (ind_data @-> ret (array int)) Ltac2Ind.cons
 let () = define "constructor_ndecls" (ind_data @-> ret (array int)) Ltac2Ind.constructor_ndecls
 
 let () = define "ind_print" (inductive @-> ret pp) Ltac2Ind.print
+
+(** Int *)
+module Ltac2Int = struct
+  type t = int
+
+  let equal = (==)
+  let compare = Int.compare
+
+  let add = (+)
+  let sub = (-)
+  let mul = ( * )
+
+  let div m n =
+    if n == 0 then throw Tac2ffi.err_division_by_zero
+    else return (m / n)
+  let (mod) m n =
+    if n == 0 then throw Tac2ffi.err_division_by_zero
+    else return (m mod n)
+
+  let neg = (~-)
+  let abs = Stdlib.abs
+
+  let (asr) = (asr)
+  let (lsl) = (lsl)
+  let (lsr) = (lsr)
+  let (land) = (land)
+  let (lor) = (lor)
+  let (lxor) = (lxor)
+  let (lnot) = (lnot)
+end
+
+let () = define "int_equal" (int @-> int @-> ret bool) Ltac2Int.equal
+let () = define "int_compare" (int @-> int @-> ret int) Ltac2Int.compare
+
+let () = define "int_add" (int @-> int @-> ret int) Ltac2Int.add
+let () = define "int_sub" (int @-> int @-> ret int) Ltac2Int.sub
+let () = define "int_mul" (int @-> int @-> ret int) Ltac2Int.mul
+
+let () = define "int_neg" (int @-> ret int) Ltac2Int.neg
+let () = define "int_abs" (int @-> ret int) Ltac2Int.abs
+
+let () = define "int_div" (int @-> int @-> tac int) Ltac2Int.div
+let () = define "int_mod" (int @-> int @-> tac int) Ltac2Int.(mod)
+
+let () = define "int_asr" (int @-> int @-> ret int)  Ltac2Int.(asr)
+let () = define "int_lsl" (int @-> int @-> ret int)  Ltac2Int.(lsl)
+let () = define "int_lsr" (int @-> int @-> ret int)  Ltac2Int.(lsr)
+let () = define "int_land" (int @-> int @-> ret int) Ltac2Int.(land)
+let () = define "int_lor" (int @-> int @-> ret int)  Ltac2Int.(lor)
+let () = define "int_lxor" (int @-> int @-> ret int) Ltac2Int.(lxor)
+let () = define "int_lnot" (int @-> ret int) Ltac2Int.(lnot)
 (** Ltac2 API *)
 
 module Ltac2 = struct
@@ -1041,4 +1092,5 @@ module Ltac2 = struct
   module Fresh            = Ltac2Fresh
   module Ident            = Ltac2Ident
   module Ind              = Ltac2Ind
+  module Int              = Ltac2Int
 end

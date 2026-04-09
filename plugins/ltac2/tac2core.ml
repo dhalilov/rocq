@@ -281,31 +281,6 @@ let () =
   else return (Tac2ffi.of_closure (Tac2val.abstract arity eval))
 
 
-(** Int *)
-
-let () = define "int_equal" (int @-> int @-> ret bool) (==)
-
-let () = define "int_neg" (int @-> ret int) (~-)
-let () = define "int_abs" (int @-> ret int) abs
-
-let () = define "int_compare" (int @-> int @-> ret int) Int.compare
-let () = define "int_add" (int @-> int @-> ret int) (+)
-let () = define "int_sub" (int @-> int @-> ret int) (-)
-let () = define "int_mul" (int @-> int @-> ret int) ( * )
-
-let () = define "int_div" (int @-> int @-> tac int) @@ fun m n ->
-  if n == 0 then throw Tac2ffi.err_division_by_zero else return (m / n)
-let () = define "int_mod" (int @-> int @-> tac int) @@ fun m n ->
-  if n == 0 then throw Tac2ffi.err_division_by_zero else return (m mod n)
-
-let () = define "int_asr" (int @-> int @-> ret int) (asr)
-let () = define "int_lsl" (int @-> int @-> ret int) (lsl)
-let () = define "int_lsr" (int @-> int @-> ret int) (lsr)
-let () = define "int_land" (int @-> int @-> ret int) (land)
-let () = define "int_lor" (int @-> int @-> ret int) (lor)
-let () = define "int_lxor" (int @-> int @-> ret int) (lxor)
-let () = define "int_lnot" (int @-> ret int) lnot
-
 (** String *)
 
 let () =

@@ -380,4 +380,25 @@ module Ltac2 : sig
 
     val print : t -> message
   end
+
+  module Int : sig
+    type t = int
+
+    val equal : 'a -> 'a -> bool
+    val compare : int -> int -> int
+    val add : int -> int -> int
+    val sub : int -> int -> int
+    val mul : int -> int -> int
+    val div : int -> int -> int Proofview.tactic
+    val ( mod ) : int -> int -> int Proofview.tactic
+    val neg : int -> int
+    val abs : int -> int
+    val ( asr ) : int -> int -> int
+    val ( lsl ) : int -> int -> int
+    val ( lsr ) : int -> int -> int
+    val ( land ) : int -> int -> int
+    val ( lor ) : int -> int -> int
+    val ( lxor ) : int -> int -> int
+    val lnot : int -> int
+  end
 end
