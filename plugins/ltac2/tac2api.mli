@@ -193,4 +193,14 @@ module Ltac2 : sig
 
     val has_evar : t -> bool Proofview.tactic
   end
+
+  module Constructor : sig
+    type t = constructor
+
+    val equal : t -> t -> bool
+
+    val inductive : t -> inductive
+    val index : t -> int
+    val print : t -> message
+  end
 end

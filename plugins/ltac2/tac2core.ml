@@ -168,9 +168,6 @@ let () = define "projection_print" (projection @-> ret pp) @@ fun p ->
 let () = define "ind_print" (inductive @-> ret pp) @@ fun ind ->
   Nametab.pr_global_env Id.Set.empty (IndRef ind)
 
-let () = define "constructor_print" (constructor @-> ret pp) @@ fun ctor ->
-  Nametab.pr_global_env Id.Set.empty (ConstructRef ctor)
-
 let () =
   define "message_of_exn" (valexpr @-> eret pp) @@ fun v env sigma ->
   Tac2print.pr_valexpr env sigma v (GTypRef (Other t_exn, []))
@@ -385,8 +382,6 @@ let () = define "float_equal" (float @-> float @-> ret bool) Float64.equal
 let () = define "uint63_equal" (uint63 @-> uint63 @-> ret bool) Uint63.equal
 let () = define "meta_equal" (int @-> int @-> ret bool) Int.equal
 
-let () =
-  define "constructor_equal" (constructor @-> constructor @-> ret bool) Construct.UserOrd.equal
 let () =
   define "projection_equal" (projection @-> projection @-> ret bool) Projection.UserOrd.equal
 
@@ -843,17 +838,6 @@ let () =
     (ind_data @-> ret int) @@ fun (_, mib) ->
   mib.Declarations.mind_nparams_rec
 
-let () =
-  define "constructor_inductive"
-    (constructor @-> ret inductive)
-  @@ fun (ind, _) -> ind
-
-let () =
-  define "constructor_index"
-    (constructor @-> ret int)
-  @@ fun (_, i) ->
-  (* WARNING: ML constructors are 1-indexed but Ltac2 constructors are 0-indexed *)
-  i-1
 
 let () =
   define "constructor_nargs"

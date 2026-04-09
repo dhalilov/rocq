@@ -577,6 +577,24 @@ let () = define "expected_without_type_constraint" (ret expected_type) Ltac2Cons
 let () = define "constr_pretype" (pretype_flags @-> expected_type @-> preterm @-> tac constr) Ltac2Constr.Pretype.pretype
 
 let () = define "constr_has_evar" (constr @-> tac bool) Ltac2Constr.has_evar
+
+(** Constructor *)
+module Ltac2Constructor = struct
+  type t = Construct.t
+  let equal = Construct.UserOrd.equal
+  let inductive (ind, _) = ind
+  let index (_, i) =
+    (* WARNING: ML constructors are 1-indexed but Ltac2 constructors are 0-indexed *)
+    i - 1
+  let print ctor =
+    Nametab.pr_global_env Id.Set.empty (ConstructRef ctor)
+end
+
+let () = define "constructor_equal" (constructor @-> constructor @-> ret bool) Ltac2Constructor.equal
+let () = define "constructor_inductive" (constructor @-> ret inductive) Ltac2Constructor.inductive
+let () = define "constructor_index" (constructor @-> ret int) Ltac2Constructor.index
+let () = define "constructor_print" (constructor @-> ret pp) Ltac2Constructor.print
+
 (** Ltac2 API *)
 
 module Ltac2 = struct
@@ -612,4 +630,5 @@ module Ltac2 = struct
   module Char             = Ltac2Char
   module Constant         = Ltac2Constant
   module Constr           = Ltac2Constr
+  module Constructor      = Ltac2Constructor
 end
