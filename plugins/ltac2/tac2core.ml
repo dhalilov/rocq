@@ -181,7 +181,6 @@ let () = define "uint63_print" (uint63 @-> ret pp) @@ fun i ->
 (** Extra equalities *)
 
 let () = define "uint63_equal" (uint63 @-> uint63 @-> ret bool) Uint63.equal
-let () = define "meta_equal" (int @-> int @-> ret bool) Int.equal
 
 let () =
   define "projection_equal" (projection @-> projection @-> ret bool) Projection.UserOrd.equal

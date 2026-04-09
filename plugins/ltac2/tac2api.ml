@@ -1194,6 +1194,15 @@ let () = define "format_message" (format @-> ret format) Ltac2Message.Format.mes
 
 let () = define "format_kfprintf" (closure @-> format @-> tac valexpr) Ltac2Message.Format.kfprintf
 let () = define "format_ikfprintf" (closure @-> valexpr @-> format @-> tac valexpr) @@ Ltac2Message.Format.ikfprintf
+
+(** Meta *)
+
+module Ltac2Meta = struct
+  type t = Int.t
+  let equal = Int.equal
+end
+
+let () = define "meta_equal" (int @-> int @-> ret bool) Ltac2Meta.equal
 (** Ltac2 API *)
 
 module Ltac2 = struct
@@ -1239,4 +1248,5 @@ module Ltac2 = struct
   module Ind              = Ltac2Ind
   module Int              = Ltac2Int
   module Message          = Ltac2Message
+  module Meta             = Ltac2Meta
 end

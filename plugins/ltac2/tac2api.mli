@@ -453,4 +453,10 @@ module Ltac2 : sig
         valexpr Proofview.tactic
     end
   end
+
+  module Meta : sig
+    type t = meta
+
+    val equal : t -> t -> bool
+  end
 end
