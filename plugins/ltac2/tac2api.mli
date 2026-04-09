@@ -1,0 +1,45 @@
+(************************************************************************)
+(*         *      The Rocq Prover / The Rocq Development Team           *)
+(*  v      *         Copyright INRIA, CNRS and contributors             *)
+(* <O___,, * (see version control and CREDITS file for authors & dates) *)
+(*   \VV/  **************************************************************)
+(*    //   *    This file is distributed under the terms of the         *)
+(*         *     GNU Lesser General Public License Version 2.1          *)
+(*         *     (see LICENSE file for the text of the license)         *)
+(************************************************************************)
+
+open Names
+
+
+(** Top-level module for Ltac2 OCaml APIs.
+
+    Note: avoid [open Ltac2], as built-in Ltac2 types will shadow built-in OCaml types. *)
+module Ltac2 : sig
+  (** Built-in types *)
+  type int = Int.t
+  type string = String.t
+  type char = Char.t
+  type ident = Id.t
+  type uint63 = Uint63.t
+  type float = Float64.t
+  type pstring = Pstring.t
+  type meta = Constr.metavariable
+  type evar = Evar.t
+  type sort = Sorts.t
+  type cast = Constr.cast_kind
+  type instance = EConstr.EInstance.t
+  type constant = Constant.t
+  type inductive = Ind.t
+  type constructor = Construct.t
+  type projection = Projection.t
+  type pattern = Pattern.constr_pattern
+  type constr = EConstr.t
+  type preterm = Ltac_pretype.closed_glob_constr
+  type binder = Name.t EConstr.binder_annot * EConstr.types
+  type message = Pp.t
+  type ('a, 'b, 'c, 'd) format
+  type nonrec 'a array = 'a array
+  type err = Exninfo.iexn
+  type exn = Exninfo.iexn
+  type exninfo = Exninfo.info
+end
