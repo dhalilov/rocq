@@ -374,7 +374,6 @@ let () = define "uint63_print" (uint63 @-> ret pp) @@ fun i ->
 
 (** Extra equalities *)
 
-let () = define "evar_equal" (evar @-> evar @-> ret bool) Evar.equal
 let () = define "float_equal" (float @-> float @-> ret bool) Float64.equal
 let () = define "uint63_equal" (uint63 @-> uint63 @-> ret bool) Uint63.equal
 let () = define "meta_equal" (int @-> int @-> ret bool) Int.equal

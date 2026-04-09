@@ -850,6 +850,15 @@ let () = define "env_get" (list ident @-> ret (option reference)) Ltac2Env.get
 let () = define "env_expand" (list ident @-> ret (list reference)) Ltac2Env.expand
 let () = define "env_path" (reference @-> tac (list ident)) Ltac2Env.path
 let () = define "env_instantiate" (reference @-> tac constr) Ltac2Env.instantiate
+
+(** Evar *)
+
+module Ltac2Evar = struct
+  type t = Evar.t
+  let equal = Evar.equal
+end
+
+let () = define "evar_equal" (evar @-> evar @-> ret bool) Ltac2Evar.equal
 (** Ltac2 API *)
 
 module Ltac2 = struct
@@ -888,4 +897,5 @@ module Ltac2 = struct
   module Constructor      = Ltac2Constructor
   module Control          = Ltac2Control
   module Env              = Ltac2Env
+  module Evar             = Ltac2Evar
 end

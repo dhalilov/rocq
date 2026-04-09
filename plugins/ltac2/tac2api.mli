@@ -314,4 +314,10 @@ module Ltac2 : sig
 
     val instantiate : GlobRef.t -> constr Proofview.tactic
   end
+
+  module Evar : sig
+    type t = evar
+
+    val equal : t -> t -> bool
+  end
 end
