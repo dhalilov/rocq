@@ -82,10 +82,6 @@ let throw ?(info = Exninfo.null) e =
   let info = Exninfo.add info fatal_flag () in
   Proofview.tclLIFT (Proofview.NonLogical.raise (e, info))
 
-let fail ?(info = Exninfo.null) e =
-  set_bt info >>= fun info ->
-  Proofview.tclZERO ~info e
-
 let return x = Proofview.tclUNIT x
 let catchable_exception = function
   | Logic_monad.Exception _ -> false
@@ -105,12 +101,6 @@ let wrap_exceptions ?(passthrough=false) f =
       else Proofview.tclZERO ~info e
     end
     else Exninfo.iraise (e, info)
-
-let assert_focussed =
-  Proofview.Goal.goals >>= fun gls ->
-  match gls with
-  | [_] -> Proofview.tclUNIT ()
-  | [] | _ :: _ :: _ -> throw Tac2ffi.err_notfocussed
 
 let pf_apply ?(catch_exceptions=false) f =
   let f env sigma = wrap_exceptions ~passthrough:(not catch_exceptions) (fun () -> f env sigma) in
@@ -185,99 +175,6 @@ let () = define "uint63_equal" (uint63 @-> uint63 @-> ret bool) Uint63.equal
 let () =
   define "projection_equal" (projection @-> projection @-> ret bool) Projection.UserOrd.equal
 
-(** Patterns *)
-
-let () =
-  define "pattern_empty_context" (ret matching_context)
-    Constr_matching.empty_context
-
-let () =
-  define "pattern_matches" (pattern @-> constr @-> tac valexpr) @@ fun pat c ->
-  pf_apply @@ fun env sigma ->
-  let ans =
-    try Some (Constr_matching.matches env sigma pat c)
-    with Constr_matching.PatternMatchingFailure -> None
-  in
-  begin match ans with
-  | None -> fail Tac2ffi.err_matchfailure
-  | Some ans ->
-    let ans = Id.Map.bindings ans in
-    let of_pair (id, c) = Tac2ffi.of_tuple [| Tac2ffi.of_ident id; Tac2ffi.of_constr c |] in
-    return (Tac2ffi.of_list of_pair ans)
-  end
-
-let () =
-  define "pattern_matches_subterm" (pattern @-> constr @-> tac (pair matching_context (list (pair ident constr)))) @@ fun pat c ->
-  let open Constr_matching in
-  let rec of_ans s = match IStream.peek s with
-  | IStream.Nil -> fail Tac2ffi.err_matchfailure
-  | IStream.Cons ({ m_sub = (_, sub); m_ctx }, s) ->
-    let ans = Id.Map.bindings sub in
-    Proofview.tclOR (return (m_ctx, ans)) (fun _ -> of_ans s)
-  in
-  pf_apply @@ fun env sigma ->
-  let ans = Constr_matching.match_subterm env sigma (Id.Set.empty,pat) c in
-  of_ans ans
-
-let () =
-  define "pattern_matches_vect" (pattern @-> constr @-> tac valexpr) @@ fun pat c ->
-  pf_apply @@ fun env sigma ->
-  let ans =
-    try Some (Constr_matching.matches env sigma pat c)
-    with Constr_matching.PatternMatchingFailure -> None
-  in
-  match ans with
-  | None -> fail Tac2ffi.err_matchfailure
-  | Some ans ->
-    let ans = Id.Map.bindings ans in
-    let ans = Array.map_of_list snd ans in
-    return (Tac2ffi.of_array Tac2ffi.of_constr ans)
-
-let () =
-  define "pattern_matches_subterm_vect" (pattern @-> constr @-> tac (pair matching_context (array constr))) @@ fun pat c ->
-  let open Constr_matching in
-  let rec of_ans s = match IStream.peek s with
-  | IStream.Nil -> fail Tac2ffi.err_matchfailure
-  | IStream.Cons ({ m_sub = (_, sub); m_ctx }, s) ->
-    let ans = Id.Map.bindings sub in
-    let ans = Array.map_of_list snd ans in
-    Proofview.tclOR (return (m_ctx,ans)) (fun _ -> of_ans s)
-  in
-  pf_apply @@ fun env sigma ->
-  let ans = Constr_matching.match_subterm env sigma (Id.Set.empty,pat) c in
-  of_ans ans
-
-let match_pattern = map_repr
-    (fun (b,pat) -> if b then Tac2match.MatchPattern pat else Tac2match.MatchContext pat)
-    (function Tac2match.MatchPattern pat -> (true, pat) | MatchContext pat -> (false, pat))
-    (pair bool pattern)
-
-let () =
-  define "pattern_matches_goal"
-    (bool @-> list (pair (option match_pattern) match_pattern) @-> match_pattern @-> tac valexpr)
-    @@ fun rev hp cp ->
-  assert_focussed >>= fun () ->
-  Proofview.Goal.enter_one @@ fun gl ->
-  let env = Proofview.Goal.env gl in
-  let sigma = Proofview.Goal.sigma gl in
-  let concl = Proofview.Goal.concl gl in
-  Tac2match.match_goal env sigma concl ~rev (hp, cp) >>= fun (hyps, ctx, subst) ->
-  let empty_context = Constr_matching.empty_context in
-  let of_ctxopt ctx = Tac2ffi.of_matching_context (Option.default empty_context ctx) in
-  let hids = Tac2ffi.of_array Tac2ffi.of_ident (Array.map_of_list pi1 hyps) in
-  let hbctx = Tac2ffi.of_array of_ctxopt
-      (Array.of_list (CList.filter_map (fun (_,bctx,_) -> bctx) hyps))
-  in
-  let hctx = Tac2ffi.of_array of_ctxopt (Array.map_of_list pi3 hyps) in
-  let subs = Tac2ffi.of_array Tac2ffi.of_constr (Array.map_of_list snd (Id.Map.bindings subst)) in
-  let cctx = of_ctxopt ctx in
-  let ans = Tac2ffi.of_tuple [| hids; hbctx; hctx; subs; cctx |] in
-  Proofview.tclUNIT ans
-
-let () =
-  define "pattern_instantiate"
-    (matching_context @-> constr @-> ret constr)
-    Constr_matching.instantiate_context
 
 (** Error *)
 

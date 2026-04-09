@@ -492,4 +492,26 @@ module Ltac2 : sig
 
     val contents : t -> Field.t list option
   end
+
+  module Pattern : sig
+    type context = Constr_matching.context
+
+    val empty_context : context
+
+    val matches : pattern -> constr -> valexpr Proofview.tactic
+
+    val matches_subterm : pattern -> constr -> (context * (ident * constr) list) Proofview.tactic
+
+    val matches_vect : pattern -> constr -> valexpr Proofview.tactic
+
+    val matches_subterm_vect : pattern -> constr -> (context * constr array) Proofview.tactic
+
+    val matches_goal :
+      bool ->
+      Tac2match.match_context_hyps list ->
+      Tac2match.match_pattern ->
+      valexpr Proofview.tactic
+
+    val instantiate : context -> constr -> constr
+  end
 end
