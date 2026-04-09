@@ -859,6 +859,15 @@ module Ltac2Evar = struct
 end
 
 let () = define "evar_equal" (evar @-> evar @-> ret bool) Ltac2Evar.equal
+
+(** Float *)
+
+module Ltac2Float = struct
+  type t = Float64.t
+  let equal = Float64.equal
+end
+
+let () = define "float_equal" (float @-> float @-> ret bool) Ltac2Float.equal
 (** Ltac2 API *)
 
 module Ltac2 = struct
@@ -898,4 +907,5 @@ module Ltac2 = struct
   module Control          = Ltac2Control
   module Env              = Ltac2Env
   module Evar             = Ltac2Evar
+  module Float            = Ltac2Float
 end

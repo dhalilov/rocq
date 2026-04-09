@@ -320,4 +320,10 @@ module Ltac2 : sig
 
     val equal : t -> t -> bool
   end
+
+  module Float : sig
+    type t = float
+
+    val equal : t -> t -> bool
+  end
 end
