@@ -326,4 +326,21 @@ module Ltac2 : sig
 
     val equal : t -> t -> bool
   end
+
+  module Fresh : sig
+    module Free : sig
+      type t = Nameops.Fresh.t
+
+      val empty : t
+      val add : ident -> t -> t
+
+      val union : t -> t -> t
+
+      val of_ids : ident list -> t
+      val of_constr : constr -> t Proofview.tactic
+    end
+
+    val next : Free.t -> ident -> ident * Free.t
+    val fresh : Free.t -> ident -> ident
+  end
 end

@@ -868,6 +868,47 @@ module Ltac2Float = struct
 end
 
 let () = define "float_equal" (float @-> float @-> ret bool) Ltac2Float.equal
+
+(** Fresh *)
+
+module Ltac2Fresh = struct
+  module Free = struct
+    type t = Nameops.Fresh.t
+
+    let empty = Nameops.Fresh.empty
+    let add = Nameops.Fresh.add
+    let union = Nameops.Fresh.union
+
+    let of_ids ids = List.fold_right Nameops.Fresh.add ids Nameops.Fresh.empty
+    let of_constr c =
+      Proofview.tclEVARMAP >>= fun sigma ->
+      let rec fold accu c =
+        match EConstr.kind sigma c with
+        | Constr.Var id -> Nameops.Fresh.add id accu
+        | _ -> EConstr.fold sigma fold accu c
+      in
+      return (fold Nameops.Fresh.empty c)
+  end
+
+  (* for backwards compat reasons the ocaml and ltac2 APIs
+     exchange the meaning of "fresh" and "next" *)
+  let next avoid id =
+    let id = Namegen.mangle_id id in
+    Nameops.Fresh.fresh id avoid
+
+  let fresh avoid id =
+    let id = Namegen.mangle_id id in
+    Nameops.Fresh.next id avoid
+end
+
+let () = define "fresh_free_empty" (ret free) Ltac2Fresh.Free.empty
+let () = define "fresh_free_add" (ident @-> free @-> ret free) Ltac2Fresh.Free.add
+let () = define "fresh_free_union" (free @-> free @-> ret free) Ltac2Fresh.Free.union
+let () = define "fresh_free_of_ids" (list ident @-> ret free) Ltac2Fresh.Free.of_ids
+let () = define "fresh_free_of_constr" (constr @-> tac free) Ltac2Fresh.Free.of_constr
+
+let () = define "fresh_next" (free @-> ident @-> ret (pair ident free)) Ltac2Fresh.next
+let () = define "fresh_fresh" (free @-> ident @-> ret ident) Ltac2Fresh.fresh
 (** Ltac2 API *)
 
 module Ltac2 = struct
@@ -908,4 +949,5 @@ module Ltac2 = struct
   module Env              = Ltac2Env
   module Evar             = Ltac2Evar
   module Float            = Ltac2Float
+  module Fresh            = Ltac2Fresh
 end

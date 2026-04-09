@@ -478,41 +478,6 @@ let () =
 
 let () = define "message_of_exninfo" (exninfo @-> ret pp) CErrors.print_extra
 
-(** Fresh *)
-
-let () = define "fresh_free_empty" (ret free) Nameops.Fresh.empty
-
-let () = define "fresh_free_add" (ident @-> free @-> ret free) Nameops.Fresh.add
-
-let () =
-  define "fresh_free_union" (free @-> free @-> ret free) Nameops.Fresh.union
-
-let () =
-  define "fresh_free_of_ids" (list ident @-> ret free) @@ fun ids ->
-  List.fold_right Nameops.Fresh.add ids Nameops.Fresh.empty
-
-let () =
-  define "fresh_free_of_constr" (constr @-> tac free) @@ fun c ->
-  Proofview.tclEVARMAP >>= fun sigma ->
-  let rec fold accu c =
-    match EConstr.kind sigma c with
-    | Constr.Var id -> Nameops.Fresh.add id accu
-    | _ -> EConstr.fold sigma fold accu c
-  in
-  return (fold Nameops.Fresh.empty c)
-
-(* for backwards compat reasons the ocaml and ltac2 APIs
-   exchange the meaning of "fresh" and "next" *)
-let () =
-  define "fresh_next" (free @-> ident @-> ret (pair ident free)) @@ fun avoid id ->
-  let id = Namegen.mangle_id id in
-  Nameops.Fresh.fresh id avoid
-
-let () =
-  define "fresh_fresh" (free @-> ident @-> ret ident) @@ fun avoid id ->
-  let id = Namegen.mangle_id id in
-  Nameops.Fresh.next id avoid
-
 
 (** Ind *)
 
