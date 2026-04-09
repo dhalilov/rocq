@@ -18,6 +18,8 @@ open Tac2val
 open Tac2core
 open Proofview.Notations
 
+module CInt = Int
+
 (** Helper methods *)
 let v_blk = Valexpr.make_block
 
@@ -1879,6 +1881,174 @@ end
 
 let () = define "infer_conv" (to_conv_pb @--> transparent_state @-> constr @-> constr @-> tac bool) Ltac2Unification.conv
 let () = define "evarconv_unify" (transparent_state @-> constr @-> constr @-> tac unit) Ltac2Unification.unify
+
+(** FSet/FMap *)
+open Tac2core
+
+let assert_map_tag_eq t1 t2 = match Tac2core.map_tag_eq t1 t2 with
+  | Some v -> v
+  | None -> assert false
+
+module Ltac2FSet = struct
+  module Tags = struct
+    let ident_tag = Tac2core.ident_map_tag
+    let int_tag = Tac2core.int_map_tag
+    let inductive_tag = Tac2core.inductive_map_tag
+    let constructor_tag = Tac2core.constructor_map_tag
+    let constant_tag = Tac2core.constant_map_tag
+    let string_tag = Tac2core.string_map_tag
+  end
+
+  let empty (Any tag) =
+    let (module V) = get_map tag in
+    tag_set tag V.S.empty
+
+  let is_empty (TaggedSet (tag,s)) =
+    let (module V) = get_map tag in
+    V.S.is_empty s
+
+  let mem x (TaggedSet (tag,s)) =
+    let (module V) = get_map tag in
+    V.S.mem (repr_to V.repr x) s
+
+  let add x (TaggedSet (tag,s)) =
+    let (module V) = get_map tag in
+    tag_set tag (V.S.add (repr_to V.repr x) s)
+
+  let remove x (TaggedSet (tag, s)) =
+    let (module V) = get_map tag in
+    tag_set tag (V.S.remove (repr_to V.repr x) s)
+
+  let union (TaggedSet (tag,s1)) (TaggedSet (tag',s2)) =
+    let Refl = assert_map_tag_eq tag tag' in
+    let (module V) = get_map tag in
+    tag_set tag (V.S.union s1 s2)
+
+  let inter (TaggedSet (tag,s1)) (TaggedSet (tag',s2)) =
+    let Refl = assert_map_tag_eq tag tag' in
+    let (module V) = get_map tag in
+    tag_set tag (V.S.inter s1 s2)
+
+  let diff (TaggedSet (tag,s1)) (TaggedSet (tag',s2)) =
+    let Refl = assert_map_tag_eq tag tag' in
+    let (module V) = get_map tag in
+    tag_set tag (V.S.diff s1 s2)
+
+  let equal (TaggedSet (tag,s1)) (TaggedSet (tag',s2)) =
+    let Refl = assert_map_tag_eq tag tag' in
+    let (module V) = get_map tag in
+    V.S.equal s1 s2
+
+  let subset (TaggedSet (tag,s1)) (TaggedSet (tag',s2)) =
+    let Refl = assert_map_tag_eq tag tag' in
+    let (module V) = get_map tag in
+    V.S.subset s1 s2
+
+  let cardinal (TaggedSet (tag,s)) =
+    let (module V) = get_map tag in
+    V.S.cardinal s
+
+  let elements (TaggedSet (tag,s)) =
+    let (module V) = get_map tag in
+    Tac2ffi.of_list (repr_of V.repr) (V.S.elements s)
+end
+
+
+let () = define "fset_empty" (map_tag_repr @-> ret valexpr) Ltac2FSet.empty
+let () = define "fset_is_empty" (set_repr @-> ret bool) Ltac2FSet.is_empty
+
+let () = define "fset_mem" (valexpr @-> set_repr @-> ret bool) Ltac2FSet.mem
+let () = define "fset_add" (valexpr @-> set_repr @-> ret valexpr) Ltac2FSet.add
+let () = define "fset_remove" (valexpr @-> set_repr @-> ret valexpr) Ltac2FSet.remove
+
+let () = define "fset_union" (set_repr @-> set_repr @-> ret valexpr) Ltac2FSet.union
+let () = define "fset_inter" (set_repr @-> set_repr @-> ret valexpr) Ltac2FSet.inter
+let () = define "fset_diff" (set_repr @-> set_repr @-> ret valexpr) Ltac2FSet.diff
+
+let () = define "fset_equal" (set_repr @-> set_repr @-> ret bool) Ltac2FSet.equal
+let () = define "fset_subset" (set_repr @-> set_repr @-> ret bool) Ltac2FSet.subset
+
+let () = define "fset_cardinal" (set_repr @-> ret int) Ltac2FSet.cardinal
+let () = define "fset_elements" (set_repr @-> ret valexpr) Ltac2FSet.elements
+
+module Ltac2FMap = struct
+
+  let empty (Any (tag)) =
+    let (module V) = get_map tag in
+    let Refl = V.valmap_eq in
+    tag_map tag V.M.empty
+
+  let is_empty (TaggedMap (tag,m)) =
+    let (module V) = get_map tag in
+    let Refl = V.valmap_eq in
+    V.M.is_empty m
+
+  let mem x (TaggedMap (tag,m)) =
+    let (module V) = get_map tag in
+    let Refl = V.valmap_eq in
+    V.M.mem (repr_to V.repr x) m
+
+  let add x v (TaggedMap (tag,m)) =
+    let (module V) = get_map tag in
+    let Refl = V.valmap_eq in
+    tag_map tag (V.M.add (repr_to V.repr x) v m)
+
+  let remove x (TaggedMap (tag,m)) =
+    let (module V) = get_map tag in
+    let Refl = V.valmap_eq in
+    tag_map tag (V.M.remove (repr_to V.repr x) m)
+
+  let find_opt x (TaggedMap (tag,m)) =
+    let (module V) = get_map tag in
+    let Refl = V.valmap_eq in
+    V.M.find_opt (repr_to V.repr x) m
+
+  let mapi f (TaggedMap (tag,m)) =
+    let (module V) = get_map tag in
+    let Refl = V.valmap_eq in
+    let module Monadic = V.M.Monad(Proofview.Monad) in
+    Monadic.mapi (fun k v -> apply f [repr_of V.repr k;v]) m >>= fun m ->
+    return (tag_map tag m)
+
+  let fold f (TaggedMap (tag,m)) acc =
+    let (module V) = get_map tag in
+    let Refl = V.valmap_eq in
+    let module Monadic = V.M.Monad(Proofview.Monad) in
+    Monadic.fold (fun k v acc -> apply f [repr_of V.repr k;v;acc]) m acc
+
+  let cardinal (TaggedMap (tag,m)) =
+    let (module V) = get_map tag in
+    let Refl = V.valmap_eq in
+    V.M.cardinal m
+
+  let bindings (TaggedMap (tag,m)) =
+    let (module V) = get_map tag in
+    let Refl = V.valmap_eq in
+    Tac2ffi.(of_list (of_pair (repr_of V.repr) identity) (V.M.bindings m))
+
+  let domain (TaggedMap (tag,m)) =
+    let (module V) = get_map tag in
+    let Refl = V.valmap_eq in
+    tag_set tag (V.M.domain m)
+end
+
+let () = define "fmap_empty" (map_tag_repr @-> ret valexpr) Ltac2FMap.empty
+let () = define "fmap_is_empty" (map_repr @-> ret bool) Ltac2FMap.is_empty
+
+let () = define "fmap_mem" (valexpr @-> map_repr @-> ret bool) Ltac2FMap.mem
+
+let () = define "fmap_add" (valexpr @-> valexpr @-> map_repr @-> ret valexpr) Ltac2FMap.add
+let () = define "fmap_remove" (valexpr @-> map_repr @-> ret valexpr) Ltac2FMap.remove
+
+let () = define "fmap_find_opt" (valexpr @-> map_repr @-> ret (option valexpr)) Ltac2FMap.find_opt
+
+let () = define "fmap_mapi" (closure @-> map_repr @-> tac valexpr) Ltac2FMap.mapi
+let () = define "fmap_fold" (closure @-> map_repr @-> valexpr @-> tac valexpr) Ltac2FMap.fold
+
+let () = define "fmap_cardinal" (map_repr @-> ret int) Ltac2FMap.cardinal
+let () = define "fmap_bindings" (map_repr @-> ret valexpr) Ltac2FMap.bindings
+let () = define "fmap_domain" (map_repr @-> ret valexpr) Ltac2FMap.domain
+
 (** Ltac2 API *)
 
 module Ltac2 = struct
@@ -1933,6 +2103,8 @@ module Ltac2 = struct
   module Scheme           = Ltac2Scheme
   module String           = Ltac2String
   module Uint63           = Ltac2Uint63
+  module FSet             = Ltac2FSet
+  module FMap             = Ltac2FMap
   module TransparentState = Ltac2TransparentState
   module Unification      = Ltac2Unification
 end

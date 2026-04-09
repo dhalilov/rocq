@@ -11,6 +11,7 @@
 open Tac2val
 open Names
 
+module CInt = Int
 
 (** Top-level module for Ltac2 OCaml APIs.
 
@@ -658,6 +659,92 @@ module Ltac2 : sig
     val compare : t -> t -> int
 
     val print : t -> message
+  end
+
+  module FSet : sig
+    open Tac2core
+
+    module Tags : sig
+      val ident_tag :
+        ( ident,
+          Id.Set.t,
+          valexpr Id.Map.t )
+          Tac2core.map_tag
+
+      val int_tag :
+        (int, CInt.Set.t, valexpr CInt.Map.t) map_tag
+
+      val inductive_tag :
+        ( inductive,
+          Indset_env.t,
+          valexpr Indmap_env.t )
+          map_tag
+
+      val constructor_tag :
+        ( constructor,
+          Constrset_env.t,
+          valexpr Constrmap_env.t )
+          map_tag
+
+      val constant_tag :
+        ( constant,
+          Cset_env.t,
+          valexpr Cmap_env.t )
+          map_tag
+
+      val string_tag :
+        ( CString.t,
+          CString.Set.t,
+          valexpr CString.Map.t )
+          map_tag
+    end
+
+    val empty : any_map_tag -> valexpr
+    val is_empty : tagged_set -> bool
+    val mem : valexpr -> tagged_set -> bool
+    val add : valexpr -> tagged_set -> valexpr
+    val remove : valexpr -> tagged_set -> valexpr
+    val union : tagged_set -> tagged_set -> valexpr
+    val inter : tagged_set -> tagged_set -> valexpr
+    val diff : tagged_set -> tagged_set -> valexpr
+    val equal : tagged_set -> tagged_set -> bool
+    val subset : tagged_set -> tagged_set -> bool
+    val cardinal : tagged_set -> int
+    val elements : tagged_set -> valexpr
+  end
+
+  module FMap : sig
+    open Tac2core
+
+    val empty : any_map_tag -> valexpr
+    val is_empty : tagged_map -> bool
+    val mem : valexpr -> tagged_map -> bool
+
+    val add :
+      valexpr ->
+      valexpr ->
+      tagged_map ->
+      valexpr
+
+    val remove : valexpr -> tagged_map -> valexpr
+
+    val find_opt :
+      valexpr -> tagged_map -> valexpr option
+
+    val mapi :
+      Tac2val.closure ->
+      tagged_map ->
+      valexpr Proofview.tactic
+
+    val fold :
+      Tac2val.closure ->
+      tagged_map ->
+      valexpr ->
+      valexpr Proofview.Monad.t
+
+    val cardinal : tagged_map -> int
+    val bindings : tagged_map -> valexpr
+    val domain : tagged_map -> valexpr
   end
 
   module TransparentState : sig

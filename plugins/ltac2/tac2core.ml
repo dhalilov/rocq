@@ -82,7 +82,6 @@ let throw ?(info = Exninfo.null) e =
   let info = Exninfo.add info fatal_flag () in
   Proofview.tclLIFT (Proofview.NonLogical.raise (e, info))
 
-let return x = Proofview.tclUNIT x
 let catchable_exception = function
   | Logic_monad.Exception _ -> false
   | e -> CErrors.noncritical e
@@ -172,10 +171,6 @@ let map_tag_eq (type a b c a' b' c') (t1:(a,b,c) map_tag) (t2:(a',b',c') map_tag
   : (a*b*c,a'*b'*c') Util.eq option
   = MapTagDyn.eq t1 t2
 
-let assert_map_tag_eq t1 t2 = match map_tag_eq t1 t2 with
-  | Some v -> v
-  | None -> assert false
-
 let ident_map_tag : _ map_tag = register_map ~tag_name:"fmap_ident_tag" (module struct
     module S = Id.Set
     module M = Id.Map
@@ -223,147 +218,3 @@ let constant_map_tag : _ map_tag = register_map ~tag_name:"fmap_constant_tag" (m
     type valmap = valexpr M.t
     let valmap_eq = Refl
   end)
-
-let () =
-  define "fset_empty" (map_tag_repr @-> ret valexpr) @@ fun (Any tag) ->
-  let (module V) = get_map tag in
-  tag_set tag V.S.empty
-
-let () =
-  define "fset_is_empty" (set_repr @-> ret bool) @@ fun (TaggedSet (tag,s)) ->
-  let (module V) = get_map tag in
-  V.S.is_empty s
-
-let () =
-  define "fset_mem" (valexpr @-> set_repr @-> ret bool) @@ fun x (TaggedSet (tag,s)) ->
-  let (module V) = get_map tag in
-  V.S.mem (repr_to V.repr x) s
-
-let () =
-  define "fset_add" (valexpr @-> set_repr @-> ret valexpr) @@ fun x (TaggedSet (tag,s)) ->
-  let (module V) = get_map tag in
-  tag_set tag (V.S.add (repr_to V.repr x) s)
-
-let () =
-  define "fset_remove" (valexpr @-> set_repr @-> ret valexpr) @@ fun x (TaggedSet (tag,s)) ->
-  let (module V) = get_map tag in
-  tag_set tag (V.S.remove (repr_to V.repr x) s)
-
-let () =
-  define "fset_union" (set_repr @-> set_repr @-> ret valexpr)
-    @@ fun (TaggedSet (tag,s1)) (TaggedSet (tag',s2)) ->
-  let Refl = assert_map_tag_eq tag tag' in
-  let (module V) = get_map tag in
-  tag_set tag (V.S.union s1 s2)
-
-let () =
-  define "fset_inter" (set_repr @-> set_repr @-> ret valexpr)
-    @@ fun (TaggedSet (tag,s1)) (TaggedSet (tag',s2)) ->
-  let Refl = assert_map_tag_eq tag tag' in
-  let (module V) = get_map tag in
-  tag_set tag (V.S.inter s1 s2)
-
-let () =
-  define "fset_diff" (set_repr @-> set_repr @-> ret valexpr)
-    @@ fun (TaggedSet (tag,s1)) (TaggedSet (tag',s2)) ->
-  let Refl = assert_map_tag_eq tag tag' in
-  let (module V) = get_map tag in
-  tag_set tag (V.S.diff s1 s2)
-
-let () =
-  define "fset_equal" (set_repr @-> set_repr @-> ret bool)
-    @@ fun (TaggedSet (tag,s1)) (TaggedSet (tag',s2)) ->
-  let Refl = assert_map_tag_eq tag tag' in
-  let (module V) = get_map tag in
-  V.S.equal s1 s2
-
-let () =
-  define "fset_subset" (set_repr @-> set_repr @-> ret bool)
-    @@ fun (TaggedSet (tag,s1)) (TaggedSet (tag',s2)) ->
-  let Refl = assert_map_tag_eq tag tag' in
-  let (module V) = get_map tag in
-  V.S.subset s1 s2
-
-let () =
-  define "fset_cardinal" (set_repr @-> ret int) @@ fun (TaggedSet (tag,s)) ->
-  let (module V) = get_map tag in
-  V.S.cardinal s
-
-let () =
-  define "fset_elements" (set_repr @-> ret valexpr) @@ fun (TaggedSet (tag,s)) ->
-  let (module V) = get_map tag in
-  Tac2ffi.of_list (repr_of V.repr) (V.S.elements s)
-
-let () =
-  define "fmap_empty" (map_tag_repr @-> ret valexpr) @@ fun (Any (tag)) ->
-  let (module V) = get_map tag in
-  let Refl = V.valmap_eq in
-  tag_map tag V.M.empty
-
-let () =
-  define "fmap_is_empty" (map_repr @-> ret bool) @@ fun (TaggedMap (tag,m)) ->
-  let (module V) = get_map tag in
-  let Refl = V.valmap_eq in
-  V.M.is_empty m
-
-let () =
-  define "fmap_mem" (valexpr @-> map_repr @-> ret bool) @@ fun x (TaggedMap (tag,m)) ->
-  let (module V) = get_map tag in
-  let Refl = V.valmap_eq in
-  V.M.mem (repr_to V.repr x) m
-
-let () =
-  define "fmap_add" (valexpr @-> valexpr @-> map_repr @-> ret valexpr)
-    @@ fun x v (TaggedMap (tag,m)) ->
-  let (module V) = get_map tag in
-  let Refl = V.valmap_eq in
-  tag_map tag (V.M.add (repr_to V.repr x) v m)
-
-let () =
-  define "fmap_remove" (valexpr @-> map_repr @-> ret valexpr)
-    @@ fun x (TaggedMap (tag,m)) ->
-  let (module V) = get_map tag in
-  let Refl = V.valmap_eq in
-  tag_map tag (V.M.remove (repr_to V.repr x) m)
-
-let () =
-  define "fmap_find_opt" (valexpr @-> map_repr @-> ret (option valexpr))
-    @@ fun x (TaggedMap (tag,m)) ->
-  let (module V) = get_map tag in
-  let Refl = V.valmap_eq in
-  V.M.find_opt (repr_to V.repr x) m
-
-let () =
-  define "fmap_mapi" (closure @-> map_repr @-> tac valexpr)
-    @@ fun f (TaggedMap (tag,m)) ->
-  let (module V) = get_map tag in
-  let Refl = V.valmap_eq in
-  let module Monadic = V.M.Monad(Proofview.Monad) in
-  Monadic.mapi (fun k v -> apply f [repr_of V.repr k;v]) m >>= fun m ->
-  return (tag_map tag m)
-
-let () =
-  define "fmap_fold" (closure @-> map_repr @-> valexpr @-> tac valexpr)
-    @@ fun f (TaggedMap (tag,m)) acc ->
-  let (module V) = get_map tag in
-  let Refl = V.valmap_eq in
-  let module Monadic = V.M.Monad(Proofview.Monad) in
-  Monadic.fold (fun k v acc -> apply f [repr_of V.repr k;v;acc]) m acc
-
-let () =
-  define "fmap_cardinal" (map_repr @-> ret int) @@ fun (TaggedMap (tag,m)) ->
-  let (module V) = get_map tag in
-  let Refl = V.valmap_eq in
-  V.M.cardinal m
-
-let () =
-  define "fmap_bindings" (map_repr @-> ret valexpr) @@ fun (TaggedMap (tag,m)) ->
-  let (module V) = get_map tag in
-  let Refl = V.valmap_eq in
-  Tac2ffi.(of_list (of_pair (repr_of V.repr) identity) (V.M.bindings m))
-
-let () =
-  define "fmap_domain" (map_repr @-> ret valexpr) @@ fun (TaggedMap (tag,m)) ->
-  let (module V) = get_map tag in
-  let Refl = V.valmap_eq in
-  tag_set tag (V.M.domain m)
