@@ -427,5 +427,30 @@ module Ltac2 : sig
     val hvbox : int -> message -> message
     val hovbox : int -> message -> message
 
+    module Format : sig
+      val stop : ('a, 'b, 'c, 'a) format
+      val string : ('a, 'b, 'c, 'd) format -> (string -> 'a, 'b, 'c, 'd) format
+      val int : ('a, 'b, 'c, 'd) format -> (int -> 'a, 'b, 'c, 'd) format
+      val constr : ('a, 'b, 'c, 'd) format -> (constr -> 'a, 'b, 'c, 'd) format
+      val ident : ('a, 'b, 'c, 'd) format -> (ident -> 'a, 'b, 'c, 'd) format
+
+      val message : ('a, 'b, 'c, 'd) format -> (message -> 'a, 'b, 'c, 'd) format
+
+      val literal : string -> ('a, 'b, 'c, 'd) format -> ('a, 'b, 'c, 'd) format
+
+      val alpha : ('a, 'b, 'c, 'd) format -> (('b -> 'r -> 'c) -> 'r -> 'a, 'b, 'c, 'd) format
+      val alpha0 : ('a, 'b, 'c, 'd) format -> (('r -> 'c) -> 'r -> 'a, 'b, 'c, 'd) format
+
+      val kfprintf :
+        Tac2val.closure ->
+        ('a, unit, message, 'r) format ->
+        valexpr Proofview.tactic
+
+      val ikfprintf :
+        Tac2val.closure ->
+        valexpr ->
+        ('a, unit, 'v, 'r) format ->
+        valexpr Proofview.tactic
+    end
   end
 end

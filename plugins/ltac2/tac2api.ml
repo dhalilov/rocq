@@ -13,6 +13,7 @@ open Util
 open Names
 open Tac2externals
 open Tac2ffi
+open Tac2extffi
 open Tac2val
 open Tac2core
 open Proofview.Notations
@@ -1083,6 +1084,80 @@ module Ltac2Message = struct
   let hvbox = Pp.hv
   let hovbox = Pp.hov
 
+  module Format = struct
+    open Tac2types
+
+    let stop = []
+    let string s = FmtString :: s
+    let int s = FmtInt :: s
+    let constr s = FmtConstr :: s
+    let ident s = FmtIdent :: s
+    let literal l s = FmtLiteral l :: s
+    let alpha s = FmtAlpha :: s
+    let alpha0 s = FmtAlpha0 :: s
+    let message s = FmtMessage :: s
+
+    let arity_of_format fmt =
+      let fold accu = function
+        | FmtLiteral _ -> accu
+        | FmtString | FmtInt | FmtConstr | FmtIdent | FmtMessage -> 1 + accu
+        | FmtAlpha | FmtAlpha0 -> 2 + accu
+      in
+      List.fold_left fold 0 fmt
+
+    let kfprintf k fmt =
+      let pop1 l = match l with [] -> assert false | x :: l -> (x, l) in
+      let pop2 l = match l with [] | [_] -> assert false | x :: y :: l -> (x, y, l) in
+      let arity = arity_of_format fmt in
+      let rec eval accu args fmt = match fmt with
+        | [] -> apply k [of_pp accu]
+        | tag :: fmt ->
+           match tag with
+           | FmtLiteral s ->
+              eval (Pp.app accu (Pp.str s)) args fmt
+           | FmtString ->
+              let (s, args) = pop1 args in
+              let pp = Pp.str (Tac2ffi.to_string s) in
+              eval (Pp.app accu pp) args fmt
+           | FmtInt ->
+              let (i, args) = pop1 args in
+              let pp = Pp.int (to_int i) in
+              eval (Pp.app accu pp) args fmt
+           | FmtConstr ->
+              let (c, args) = pop1 args in
+              let c = to_constr c in
+              pf_apply begin fun env sigma ->
+                let pp = Printer.pr_econstr_env env sigma c in
+                eval (Pp.app accu pp) args fmt
+                end
+           | FmtIdent ->
+              let (i, args) = pop1 args in
+              let pp = Id.print (to_ident i) in
+              eval (Pp.app accu pp) args fmt
+           | FmtMessage ->
+              let (m, args) = pop1 args in
+              let m = to_pp m in
+              eval (Pp.app accu m) args fmt
+           | FmtAlpha ->
+              let (f, x, args) = pop2 args in
+              Tac2val.apply_val f [of_unit (); x] >>= fun pp ->
+              eval (Pp.app accu (to_pp pp)) args fmt
+           | FmtAlpha0 ->
+              let (f, x, args) = pop2 args in
+              Tac2val.apply_val f [x] >>= fun pp ->
+              eval (Pp.app accu (to_pp pp)) args fmt
+      in
+      let eval v = eval (Pp.mt ()) v fmt in
+      if Int.equal arity 0 then eval []
+      else return (Tac2ffi.of_closure (Tac2val.abstract arity eval))
+
+    let ikfprintf k v fmt =
+      let arity = arity_of_format fmt in
+      let eval _args = apply k [v] in
+      if Int.equal arity 0 then eval []
+      else return (Tac2ffi.of_closure (Tac2val.abstract arity eval))
+  end
+
 end
 
 let () = define "print" (pp @-> ret unit) Ltac2Message.print
@@ -1106,6 +1181,19 @@ let () = define "message_hbox" (pp @-> ret pp) Ltac2Message.hbox
 let () = define "message_vbox" (int @-> pp @-> ret pp) Ltac2Message.vbox
 let () = define "message_hvbox" (int @-> pp @-> ret pp) Ltac2Message.hvbox
 let () = define "message_hovbox" (int @-> pp @-> ret pp) Ltac2Message.hovbox
+
+let () = define "format_stop" (ret format) Ltac2Message.Format.stop
+let () = define "format_string" (format @-> ret format) Ltac2Message.Format.string
+let () = define "format_int" (format @-> ret format) Ltac2Message.Format.int
+let () = define "format_constr" (format @-> ret format) Ltac2Message.Format.constr
+let () = define "format_ident" (format @-> ret format) Ltac2Message.Format.ident
+let () = define "format_literal" (string @-> format @-> ret format) Ltac2Message.Format.literal
+let () = define "format_alpha" (format @-> ret format) Ltac2Message.Format.alpha
+let () = define "format_alpha0" (format @-> ret format) Ltac2Message.Format.alpha0
+let () = define "format_message" (format @-> ret format) Ltac2Message.Format.message
+
+let () = define "format_kfprintf" (closure @-> format @-> tac valexpr) Ltac2Message.Format.kfprintf
+let () = define "format_ikfprintf" (closure @-> valexpr @-> format @-> tac valexpr) @@ Ltac2Message.Format.ikfprintf
 (** Ltac2 API *)
 
 module Ltac2 = struct
