@@ -369,11 +369,6 @@ let () =
   define "pstring_equal" (pstring @-> pstring @-> ret bool) Pstring.equal;
   define "pstring_compare" (pstring @-> pstring @-> ret int) Pstring.compare
 
-
-let () = define "constr_cast_default" (ret valexpr) (of_cast DEFAULTcast)
-let () = define "constr_cast_vm" (ret valexpr) (of_cast VMcast)
-let () = define "constr_cast_native" (ret valexpr) (of_cast NATIVEcast)
-
 (** preterm -> constr *)
 
 let () = define "constr_flags" (ret pretype_flags) constr_flags
@@ -430,7 +425,6 @@ let () = define "evar_equal" (evar @-> evar @-> ret bool) Evar.equal
 let () = define "float_equal" (float @-> float @-> ret bool) Float64.equal
 let () = define "uint63_equal" (uint63 @-> uint63 @-> ret bool) Uint63.equal
 let () = define "meta_equal" (int @-> int @-> ret bool) Int.equal
-let () = define "constr_cast_equal" (cast @-> cast @-> ret bool) Glob_ops.cast_kind_eq
 
 let () =
   define "constructor_equal" (constructor @-> constructor @-> ret bool) Construct.UserOrd.equal

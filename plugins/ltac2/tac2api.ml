@@ -440,6 +440,15 @@ module Ltac2Constr = struct
     end
   end
 
+  module Cast = struct
+    type t = Constr.cast_kind
+    let equal = Glob_ops.cast_kind_eq
+
+    let default = of_cast DEFAULTcast
+    let vm      = of_cast VMcast
+    let native  = of_cast NATIVEcast
+  end
+
   let in_context id t c =
     Proofview.Goal.goals >>= function
     | [gl] ->
@@ -509,6 +518,12 @@ let () = define "constr_case" (inductive @-> tac valexpr) Ltac2Constr.Unsafe.cas
 
 let () = define "constr_case_equal" (case @-> case @-> ret bool) Ltac2Constr.Unsafe.Case.equal
 let () = define "case_to_inductive" (case @-> ret inductive) Ltac2Constr.Unsafe.Case.inductive
+
+let () = define "constr_cast_equal" (cast @-> cast @-> ret bool) Ltac2Constr.Cast.equal
+let () = define "constr_cast_default" (ret valexpr) Ltac2Constr.Cast.default
+let () = define "constr_cast_vm" (ret valexpr) Ltac2Constr.Cast.vm
+let () = define "constr_cast_native" (ret valexpr) Ltac2Constr.Cast.native
+
 let () = define "constr_in_context" (ident @-> constr @-> thunk unit @-> tac constr) Ltac2Constr.in_context
 
 let () = define "constr_has_evar" (constr @-> tac bool) Ltac2Constr.has_evar

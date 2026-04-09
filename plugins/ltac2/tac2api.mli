@@ -146,6 +146,16 @@ module Ltac2 : sig
       end
     end
 
+    module Cast : sig
+      type t = cast
+
+      val default : valexpr
+      val vm : valexpr
+      val native : valexpr
+
+      val equal : t -> t -> bool
+    end
+
     val in_context :
       variable ->
       t ->
