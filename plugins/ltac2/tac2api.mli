@@ -343,4 +343,12 @@ module Ltac2 : sig
     val next : Free.t -> ident -> ident * Free.t
     val fresh : Free.t -> ident -> ident
   end
+
+  module Ident : sig
+    type t = ident
+
+    val equal : ident -> ident -> bool
+    val to_string : ident -> string
+    val of_string : string -> ident option
+  end
 end

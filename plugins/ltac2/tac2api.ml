@@ -909,6 +909,22 @@ let () = define "fresh_free_of_constr" (constr @-> tac free) Ltac2Fresh.Free.of_
 
 let () = define "fresh_next" (free @-> ident @-> ret (pair ident free)) Ltac2Fresh.next
 let () = define "fresh_fresh" (free @-> ident @-> ret ident) Ltac2Fresh.fresh
+
+(** Ident *)
+
+module Ltac2Ident = struct
+  type t = Id.t
+
+  let equal = Id.equal
+  let to_string = Id.to_string
+  let of_string s =
+    try Some (Id.of_string s)
+    with e when CErrors.noncritical e -> None
+end
+
+let () = define "ident_equal" (ident @-> ident @-> ret bool) Ltac2Ident.equal
+let () = define "ident_to_string" (ident @-> ret string) Ltac2Ident.to_string
+let () = define "ident_of_string" (string @-> ret (option ident)) Ltac2Ident.of_string
 (** Ltac2 API *)
 
 module Ltac2 = struct
@@ -950,4 +966,5 @@ module Ltac2 = struct
   module Evar             = Ltac2Evar
   module Float            = Ltac2Float
   module Fresh            = Ltac2Fresh
+  module Ident            = Ltac2Ident
 end

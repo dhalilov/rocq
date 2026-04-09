@@ -284,16 +284,6 @@ let () =
   else return (Tac2ffi.of_closure (Tac2val.abstract arity eval))
 
 
-(** Ident *)
-
-let () = define "ident_equal" (ident @-> ident @-> ret bool) Id.equal
-
-let () = define "ident_to_string" (ident @-> ret string) Id.to_string
-
-let () =
-  define "ident_of_string" (string @-> ret (option ident)) @@ fun s ->
-  try Some (Id.of_string s) with e when CErrors.noncritical e -> None
-
 (** Int *)
 
 let () = define "int_equal" (int @-> int @-> ret bool) (==)
