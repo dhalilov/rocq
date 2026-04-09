@@ -1625,6 +1625,72 @@ let () = define "rewstrat_eval" (reduction @-> ret rewstrategy) Ltac2Rewrite.Str
 let () = define "rewstrat_matches" (pattern @-> ret rewstrategy) Ltac2Rewrite.Strategy.matches
 
 let () = define "rewstrat_tactic" (fun3 constr constr (option constr) rewrite_result @-> ret rewstrategy) Ltac2Rewrite.Strategy.tactic
+
+(** Scheme *)
+
+module Ltac2Scheme = struct
+  type kind = string
+
+  let lookup = DeclareScheme.lookup_scheme_opt
+
+  let rect_dep = "rect_dep"
+  let rec_dep = "rec_dep"
+  let ind_dep = "ind_dep"
+  let sind_dep = "sind_dep"
+  let ind_nodep = "ind_nodep"
+  let rec_nodep = "rec_nodep"
+  let rect_nodep = "rect_nodep"
+  let sind_nodep = "sind_nodep"
+  let eq_dec = "eq_dec"
+  let dec_lb = "dec_lb"
+  let dec_bl = "dec_bl"
+  let beq = "beq"
+  let congr = "congr"
+  let rew_fwd_r_dep = "rew_fwd_r_dep"
+  let rew_r_dep = "rew_r_dep"
+  let rew_r = "rew_r"
+  let rew_fwd_dep = "rew_fwd_dep"
+  let rew_dep = "rew_dep"
+  let rew = "rew"
+  let sym_involutive = "sym_involutive"
+  let sym = "sym"
+  let scase_nodep = "scase_nodep"
+  let scase_dep = "scase_dep"
+  let casep_nodep = "casep_nodep"
+  let casep_dep = "casep_dep"
+  let case_nodep = "case_nodep"
+  let case_dep = "case_dep"
+end
+
+let () = define "scheme_lookup" (scheme_kind @-> reference @-> ret (option reference)) Ltac2Scheme.lookup
+
+let () = define "scheme_kind_rect_dep" (ret scheme_kind) Ltac2Scheme.rect_dep
+let () = define "scheme_kind_rec_dep" (ret scheme_kind) Ltac2Scheme.rec_dep
+let () = define "scheme_kind_ind_dep" (ret scheme_kind) Ltac2Scheme.ind_dep
+let () = define "scheme_kind_sind_dep" (ret scheme_kind) Ltac2Scheme.sind_dep
+let () = define "scheme_kind_rect_nodep" (ret scheme_kind) Ltac2Scheme.rect_nodep
+let () = define "scheme_kind_rec_nodep" (ret scheme_kind) Ltac2Scheme.rec_nodep
+let () = define "scheme_kind_ind_nodep" (ret scheme_kind) Ltac2Scheme.ind_nodep
+let () = define "scheme_kind_sind_nodep" (ret scheme_kind) Ltac2Scheme.sind_nodep
+let () = define "scheme_kind_case_dep" (ret scheme_kind) Ltac2Scheme.case_dep
+let () = define "scheme_kind_case_nodep" (ret scheme_kind) Ltac2Scheme.case_nodep
+let () = define "scheme_kind_casep_dep" (ret scheme_kind) Ltac2Scheme.casep_dep
+let () = define "scheme_kind_casep_nodep" (ret scheme_kind) Ltac2Scheme.casep_nodep
+let () = define "scheme_kind_scase_dep" (ret scheme_kind) Ltac2Scheme.scase_dep
+let () = define "scheme_kind_scase_nodep" (ret scheme_kind) Ltac2Scheme.scase_nodep
+let () = define "scheme_kind_sym" (ret scheme_kind) Ltac2Scheme.sym
+let () = define "scheme_kind_sym_involutive" (ret scheme_kind) Ltac2Scheme.sym_involutive
+let () = define "scheme_kind_rew" (ret scheme_kind) Ltac2Scheme.rew
+let () = define "scheme_kind_rew_dep" (ret scheme_kind) Ltac2Scheme.rew_dep
+let () = define "scheme_kind_rew_fwd_dep" (ret scheme_kind) Ltac2Scheme.rew_fwd_dep
+let () = define "scheme_kind_rew_r" (ret scheme_kind) Ltac2Scheme.rew_r
+let () = define "scheme_kind_rew_r_dep" (ret scheme_kind) Ltac2Scheme.rew_r_dep
+let () = define "scheme_kind_rew_fwd_r_dep" (ret scheme_kind) Ltac2Scheme.rew_fwd_r_dep
+let () = define "scheme_kind_congr" (ret scheme_kind) Ltac2Scheme.congr
+let () = define "scheme_kind_beq" (ret scheme_kind) Ltac2Scheme.beq
+let () = define "scheme_kind_dec_bl" (ret scheme_kind) Ltac2Scheme.dec_bl
+let () = define "scheme_kind_dec_lb" (ret scheme_kind) Ltac2Scheme.dec_lb
+let () = define "scheme_kind_eq_dec" (ret scheme_kind) Ltac2Scheme.eq_dec
 (** Ltac2 API *)
 
 module Ltac2 = struct
@@ -1676,4 +1742,5 @@ module Ltac2 = struct
   module Proj             = Ltac2Proj
   module Pstring          = Ltac2Pstring
   module Rewrite          = Ltac2Rewrite
+  module Scheme           = Ltac2Scheme
 end

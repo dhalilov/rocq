@@ -599,4 +599,38 @@ module Ltac2 : sig
       ident option ->
       unit Proofview.tactic
   end
+
+  module Scheme : sig
+    type kind = string
+
+    val lookup : kind -> GlobRef.t -> GlobRef.t option
+
+    val rect_dep : kind
+    val rec_dep : kind
+    val ind_dep : kind
+    val sind_dep : kind
+    val ind_nodep : kind
+    val rec_nodep : kind
+    val rect_nodep : kind
+    val sind_nodep : kind
+    val eq_dec : kind
+    val dec_lb : kind
+    val dec_bl : kind
+    val beq : kind
+    val congr : kind
+    val rew_fwd_r_dep : kind
+    val rew_r_dep : kind
+    val rew_r : kind
+    val rew_fwd_dep : kind
+    val rew_dep : kind
+    val rew : kind
+    val sym_involutive : kind
+    val sym : kind
+    val scase_nodep : kind
+    val scase_dep : kind
+    val casep_nodep : kind
+    val casep_dep : kind
+    val case_nodep : kind
+    val case_dep : kind
+  end
 end
