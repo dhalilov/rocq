@@ -1477,6 +1477,37 @@ let match_pattern = Tac2ffi.map_repr
 
 let () = define "pattern_matches_goal" (bool @-> list (pair (option match_pattern) match_pattern) @-> match_pattern @-> tac valexpr) Ltac2Pattern.matches_goal
 let () = define "pattern_instantiate" (matching_context @-> constr @-> ret constr) Ltac2Pattern.instantiate
+
+(** Projection *)
+
+module Ltac2Proj = struct
+  type t = Projection.t
+
+  let equal = Projection.UserOrd.equal
+
+  let ind = Projection.inductive
+  let index = Projection.arg
+  let unfolded = Projection.unfolded
+  let set_unfolded p b = Projection.make (Projection.repr p) b
+
+  let of_constant c =
+    Structures.PrimitiveProjections.find_opt c |> Option.map (fun p -> Projection.make p false)
+  let to_constant p = Some (Projection.constant p)
+
+  let print p =
+    Nametab.pr_global_env Id.Set.empty (ConstRef (Projection.constant p))
+end
+
+let () = define "projection_equal" (projection @-> projection @-> ret bool) Ltac2Proj.equal
+let () = define "projection_ind" (projection @-> ret inductive) Ltac2Proj.ind
+let () = define "projection_index" (projection @-> ret int) Ltac2Proj.index
+let () = define "projection_unfolded" (projection @-> ret bool) Ltac2Proj.unfolded
+let () = define "projection_set_unfolded" (projection @-> bool @-> ret projection) Ltac2Proj.set_unfolded
+
+let () = define "projection_of_constant" (constant @-> ret (option projection)) Ltac2Proj.of_constant
+let () = define "projection_to_constant" (projection @-> ret (option constant)) Ltac2Proj.to_constant
+
+let () = define "projection_print" (projection @-> ret pp) Ltac2Proj.print
 (** Ltac2 API *)
 
 module Ltac2 = struct
@@ -1525,4 +1556,5 @@ module Ltac2 = struct
   module Meta             = Ltac2Meta
   module Module           = Ltac2Module
   module Pattern          = Ltac2Pattern
+  module Proj             = Ltac2Proj
 end

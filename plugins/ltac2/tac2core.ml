@@ -172,10 +172,6 @@ let () = define "uint63_print" (uint63 @-> ret pp) @@ fun i ->
 
 let () = define "uint63_equal" (uint63 @-> uint63 @-> ret bool) Uint63.equal
 
-let () =
-  define "projection_equal" (projection @-> projection @-> ret bool) Projection.UserOrd.equal
-
-
 (** Error *)
 
 let () = define "message_of_exninfo" (exninfo @-> ret pp) CErrors.print_extra
@@ -218,29 +214,6 @@ let () = define_scheme_kind "beq"
 let () = define_scheme_kind "dec_bl"
 let () = define_scheme_kind "dec_lb"
 let () = define_scheme_kind "eq_dec"
-
-(** Proj *)
-
-let () =
-  define "projection_ind" (projection @-> ret inductive) Projection.inductive
-
-let () =
-  define "projection_index" (projection @-> ret int) Projection.arg
-
-let () =
-  define "projection_unfolded" (projection @-> ret bool) Projection.unfolded
-
-let () =
-  define "projection_set_unfolded" (projection @-> bool @-> ret projection) @@ fun p b ->
-  Projection.make (Projection.repr p) b
-
-let () =
-  define "projection_of_constant" (constant @-> ret (option projection)) @@ fun c ->
-  Structures.PrimitiveProjections.find_opt c |> Option.map (fun p -> Projection.make p false)
-
-let () =
-  define "projection_to_constant" (projection @-> ret (option constant)) @@ fun p ->
-  Some (Projection.constant p)
 
 module MapTagDyn = Dyn.Make()
 

@@ -514,4 +514,21 @@ module Ltac2 : sig
 
     val instantiate : context -> constr -> constr
   end
+
+  module Proj : sig
+    type t = projection
+
+    val equal : t -> t -> bool
+
+    val ind : t -> inductive
+    val index : t -> int
+
+    val unfolded : t -> bool
+    val set_unfolded : t -> bool -> t
+
+    val of_constant : constant -> t option
+    val to_constant : t -> constant option
+
+    val print : t -> message
+  end
 end
