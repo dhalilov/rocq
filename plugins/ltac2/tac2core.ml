@@ -708,34 +708,6 @@ let () =
   in
   pf_apply ~catch_exceptions:true pretype
 
-let () =
-  define "constr_binder_make" (option ident @-> constr @-> tac binder) @@ fun na ty ->
-  pf_apply @@ fun env sigma ->
-  match Retyping.relevance_of_type env sigma ty with
-  | rel ->
-    let na = match na with None -> Anonymous | Some id -> Name id in
-    return (Context.make_annot na rel, ty)
-  | exception (Retyping.RetypeError _ as e) ->
-    let e, info = Exninfo.capture e in
-    fail ~info (CErrors.UserError Pp.(str "Not a type."))
-
-let () =
-  define "constr_binder_unsafe_make"
-    (option ident @-> relevance @-> constr @-> ret binder)
-    @@ fun na rel ty ->
-  let na = match na with None -> Anonymous | Some id -> Name id in
-  Context.make_annot na (EConstr.ERelevance.make rel), ty
-
-let () =
-  define "constr_binder_name" (binder @-> ret (option ident)) @@ fun (bnd, _) ->
-  match bnd.Context.binder_name with Anonymous -> None | Name id -> Some id
-
-let () =
-  define "constr_binder_type" (binder @-> ret constr) @@ fun (_, ty) -> ty
-
-let () =
-  define "constr_binder_relevance" (binder @-> ret relevance) @@ fun (na, _) ->
-  EConstr.Unsafe.to_relevance na.binder_relevance
 
 let () =
   define "constr_relevance_equal" (relevance @-> relevance @-> eret bool) @@ fun r1 r2 _ sigma ->

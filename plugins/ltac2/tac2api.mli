@@ -88,6 +88,26 @@ module Ltac2 : sig
     val type_ : t -> valexpr Proofview.tactic
     val equal : t -> t -> bool Proofview.tactic
 
+    module Binder : sig
+      type t = binder
+      type relevance = Sorts.relevance
+
+      val make :
+        ident option ->
+        constr ->
+        t Proofview.tactic
+
+      val unsafe_make :
+        ident option ->
+        relevance ->
+        constr ->
+        t
+
+      val name : t -> ident option
+      val type_ : t -> constr
+      val relevance : t -> relevance
+    end
+
 
     val in_context :
       variable ->

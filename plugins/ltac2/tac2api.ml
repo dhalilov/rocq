@@ -19,9 +19,36 @@ open Proofview.Notations
 (** Helper methods *)
 let v_blk = Valexpr.make_block
 
+let of_relevance = function
+  | Sorts.Relevant -> ValInt 0
+  | Sorts.Irrelevant -> ValInt 1
+  | Sorts.RelevanceVar q -> ValBlk (0, [|of_qvar q|])
+
+let to_relevance = function
+  | ValInt 0 -> Sorts.Relevant
+  | ValInt 1 -> Sorts.Irrelevant
+  | ValBlk (0, [|qvar|]) ->
+    let qvar = to_qvar qvar in
+    Sorts.RelevanceVar qvar
+  | _ -> assert false
+
+(* XXX ltac2 exposes relevance internals so breaks ERelevance abstraction
+   ltac2 Constr.Binder.relevance probably needs to be made an abstract type *)
+let relevance = make_repr of_relevance to_relevance
+
 let return = Proofview.tclUNIT
 
 let thaw f : _ Proofview.tactic = f ()
+
+let set_bt info =
+  if !Tac2bt.print_ltac2_backtrace then
+    Tac2bt.get_backtrace >>= fun bt ->
+    Proofview.tclUNIT (Exninfo.add info Tac2bt.backtrace bt)
+  else Proofview.tclUNIT info
+
+let fail ?(info = Exninfo.null) e =
+  set_bt info >>= fun info ->
+  Proofview.tclZERO ~info e
 
 (** Array *)
 
@@ -106,6 +133,38 @@ module Ltac2Constr = struct
   let equal c1 c2 =
     Proofview.tclEVARMAP >>= fun sigma -> return (EConstr.eq_constr sigma c1 c2)
 
+  module Binder = struct
+    type t = binder
+    type relevance = Sorts.relevance
+
+    let make na ty =
+      pf_apply @@ fun env sigma ->
+      match Retyping.relevance_of_type env sigma ty with
+      | rel ->
+         let na = match na with None -> Anonymous | Some id -> Name id in
+        return (Context.make_annot na rel, ty)
+      | exception (Retyping.RetypeError _ as e) ->
+        let e, info = Exninfo.capture e in
+        fail ~info (CErrors.UserError Pp.(str "Not a type."))
+
+    let unsafe_make na rel ty =
+      let na =
+        match na with
+        | None -> Anonymous
+        | Some id -> Name id
+      in Context.make_annot na (EConstr.ERelevance.make rel), ty
+
+    let name (bnd, _) =
+      match bnd.Context.binder_name with
+      | Anonymous -> None
+      | Name id -> Some id
+
+    (* type is a reserved keyword *)
+    let type_ (_, ty) = ty
+
+    let relevance (na, _) = EConstr.Unsafe.to_relevance na.Context.binder_relevance
+  end
+
 
   let in_context id t c =
     Proofview.Goal.goals >>= function
@@ -153,6 +212,12 @@ end
 let () = define "constr_type" (constr @-> tac valexpr) Ltac2Constr.type_
 let () = define "constr_equal" (constr @-> constr @-> tac bool) Ltac2Constr.equal
 
+let () = define "constr_binder_make" (option ident @-> constr @-> tac binder) Ltac2Constr.Binder.make
+let () = define "constr_binder_unsafe_make" (option ident @-> relevance @-> constr @-> ret binder) Ltac2Constr.Binder.unsafe_make
+let () = define "constr_binder_name" (binder @-> ret (option ident)) Ltac2Constr.Binder.name
+let () = define "constr_binder_type" (binder @-> ret constr) Ltac2Constr.Binder.type_
+let () =
+  define "constr_binder_relevance" (binder @-> ret relevance) Ltac2Constr.Binder.relevance
 let () = define "constr_in_context" (ident @-> constr @-> thunk unit @-> tac constr) Ltac2Constr.in_context
 
 let () = define "constr_has_evar" (constr @-> tac bool) Ltac2Constr.has_evar
