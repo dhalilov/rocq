@@ -9,6 +9,7 @@
 (************************************************************************)
 
 open Pp
+open Util
 open Names
 open Tac2externals
 open Tac2ffi
@@ -35,6 +36,33 @@ let to_relevance = function
 (* XXX ltac2 exposes relevance internals so breaks ERelevance abstraction
    ltac2 Constr.Binder.relevance probably needs to be made an abstract type *)
 let relevance = make_repr of_relevance to_relevance
+
+let of_rec_declaration (nas, ts, cs) =
+  let binders = Array.map2 (fun na t -> (na, t)) nas ts in
+  (Tac2ffi.of_array of_binder binders,
+  Tac2ffi.of_array Tac2ffi.of_constr cs)
+
+let to_rec_declaration (nas, cs) =
+  let nas = Tac2ffi.to_array to_binder nas in
+  (Array.map fst nas,
+  Array.map snd nas,
+  Tac2ffi.to_array Tac2ffi.to_constr cs)
+
+let of_case_invert = let open Constr in function
+  | NoInvert -> ValInt 0
+  | CaseInvert {indices} ->
+    v_blk 0 [|of_array of_constr indices|]
+
+let to_case_invert = let open Constr in function
+  | ValInt 0 -> NoInvert
+  | ValBlk (0, [|indices|]) ->
+    let indices = to_array to_constr indices in
+    CaseInvert {indices}
+  | _ -> CErrors.anomaly Pp.(str "unexpected value shape")
+
+let of_result f = function
+| Inl c -> v_blk 0 [|f c|]
+| Inr e -> v_blk 1 [|Tac2ffi.of_exn e|]
 
 let return = Proofview.tclUNIT
 
@@ -174,6 +202,243 @@ module Ltac2Constr = struct
     let irrelevant = Sorts.Irrelevant
   end
 
+  module Unsafe = struct
+    let kind c env sigma =
+      let open Constr in
+      match EConstr.kind sigma c with
+      | Rel n ->
+         v_blk 0 [|Tac2ffi.of_int n|]
+      | Var id ->
+         v_blk 1 [|Tac2ffi.of_ident id|]
+      | Meta n ->
+         v_blk 2 [|Tac2ffi.of_int n|]
+      | Evar (evk, args) ->
+         let args = Evd.expand_existential sigma (evk, args) in
+         v_blk 3 [|
+             Tac2ffi.of_evar evk;
+             Tac2ffi.of_array Tac2ffi.of_constr (Array.of_list args);
+           |]
+      | Sort s ->
+         v_blk 4 [|Tac2ffi.of_sort s|]
+      | Cast (c, k, t) ->
+         v_blk 5 [|
+             Tac2ffi.of_constr c;
+             Tac2ffi.of_cast k;
+             Tac2ffi.of_constr t;
+           |]
+      | Prod (na, t, u) ->
+         v_blk 6 [|
+             of_binder (na, t);
+             Tac2ffi.of_constr u;
+           |]
+      | Lambda (na, t, c) ->
+         v_blk 7 [|
+             of_binder (na, t);
+             Tac2ffi.of_constr c;
+           |]
+      | LetIn (na, b, t, c) ->
+         v_blk 8 [|
+             of_binder (na, t);
+             Tac2ffi.of_constr b;
+             Tac2ffi.of_constr c;
+           |]
+      | App (c, cl) ->
+         v_blk 9 [|
+             Tac2ffi.of_constr c;
+             Tac2ffi.of_array Tac2ffi.of_constr cl;
+           |]
+      | Const (cst, u) ->
+         v_blk 10 [|
+             Tac2ffi.of_constant cst;
+             Tac2ffi.of_instance u;
+           |]
+      | Ind (ind, u) ->
+         v_blk 11 [|
+             Tac2ffi.of_inductive ind;
+             Tac2ffi.of_instance u;
+           |]
+      | Construct (cstr, u) ->
+         v_blk 12 [|
+             Tac2ffi.of_constructor cstr;
+             Tac2ffi.of_instance u;
+           |]
+      | Case (ci, u, pms, c, iv, t, bl) ->
+         (* FIXME: also change representation Ltac2-side? *)
+         let (ci, c, iv, t, bl) = EConstr.expand_case env sigma (ci, u, pms, c, iv, t, bl) in
+         let c = on_snd (EConstr.ERelevance.kind sigma) c in
+         v_blk 13 [|
+             Tac2ffi.of_case ci;
+             Tac2ffi.(of_pair of_constr of_relevance c);
+             of_case_invert iv;
+             Tac2ffi.of_constr t;
+             Tac2ffi.of_array Tac2ffi.of_constr bl;
+           |]
+      | Fix ((recs, i), def) ->
+         let (nas, cs) = of_rec_declaration def in
+         v_blk 14 [|
+             Tac2ffi.of_array Tac2ffi.of_int recs;
+             Tac2ffi.of_int i;
+             nas;
+             cs;
+           |]
+      | CoFix (i, def) ->
+         let (nas, cs) = of_rec_declaration def in
+         v_blk 15 [|
+             Tac2ffi.of_int i;
+             nas;
+             cs;
+           |]
+      | Proj (p, r, c) ->
+         v_blk 16 [|
+             Tac2ffi.of_projection p;
+             of_relevance (EConstr.ERelevance.kind sigma r);
+             Tac2ffi.of_constr c;
+           |]
+      | Int n ->
+         v_blk 17 [|Tac2ffi.of_uint63 n|]
+      | Float f ->
+         v_blk 18 [|Tac2ffi.of_float f|]
+      | String s ->
+         v_blk 19 [|Tac2ffi.of_pstring s|]
+      | Array(u,t,def,ty) ->
+         v_blk 20 [|
+             of_instance u;
+             Tac2ffi.of_array Tac2ffi.of_constr t;
+             Tac2ffi.of_constr def;
+             Tac2ffi.of_constr ty;
+           |]
+
+    let make knd env sigma =
+      match Tac2ffi.to_block knd with
+      | (0, [|n|]) ->
+         let n = Tac2ffi.to_int n in
+         EConstr.mkRel n
+      | (1, [|id|]) ->
+         let id = Tac2ffi.to_ident id in
+         EConstr.mkVar id
+      | (2, [|n|]) ->
+         let n = Tac2ffi.to_int n in
+         EConstr.mkMeta n
+      | (3, [|evk; args|]) ->
+         let evk = to_evar evk in
+         let args = Tac2ffi.to_array Tac2ffi.to_constr args in
+         EConstr.mkLEvar sigma (evk, Array.to_list args)
+      | (4, [|s|]) ->
+         let s = Tac2ffi.to_sort s in
+         EConstr.mkSort s
+      | (5, [|c; k; t|]) ->
+         let c = Tac2ffi.to_constr c in
+         let k = Tac2ffi.to_cast k in
+         let t = Tac2ffi.to_constr t in
+         EConstr.mkCast (c, k, t)
+      | (6, [|na; u|]) ->
+         let (na, t) = to_binder na in
+         let u = Tac2ffi.to_constr u in
+         EConstr.mkProd (na, t, u)
+      | (7, [|na; c|]) ->
+         let (na, t) = to_binder na in
+         let u = Tac2ffi.to_constr c in
+         EConstr.mkLambda (na, t, u)
+      | (8, [|na; b; c|]) ->
+         let (na, t) = to_binder na in
+         let b = Tac2ffi.to_constr b in
+         let c = Tac2ffi.to_constr c in
+         EConstr.mkLetIn (na, b, t, c)
+      | (9, [|c; cl|]) ->
+         let c = Tac2ffi.to_constr c in
+         let cl = Tac2ffi.to_array Tac2ffi.to_constr cl in
+         EConstr.mkApp (c, cl)
+      | (10, [|cst; u|]) ->
+         let cst = Tac2ffi.to_constant cst in
+         let u = to_instance u in
+         EConstr.mkConstU (cst, u)
+      | (11, [|ind; u|]) ->
+         let ind = Tac2ffi.to_inductive ind in
+         let u = to_instance u in
+         EConstr.mkIndU (ind, u)
+      | (12, [|cstr; u|]) ->
+         let cstr = Tac2ffi.to_constructor cstr in
+         let u = to_instance u in
+         EConstr.mkConstructU (cstr, u)
+      | (13, [|ci; c; iv; t; bl|]) ->
+         let ci = Tac2ffi.to_case ci in
+         let c = Tac2ffi.(to_pair to_constr to_relevance c) in
+         let c = on_snd EConstr.ERelevance.make c in
+         let iv = to_case_invert iv in
+         let t = Tac2ffi.to_constr t in
+         let bl = Tac2ffi.to_array Tac2ffi.to_constr bl in
+         EConstr.mkCase (EConstr.contract_case env sigma (ci, c, iv, t, bl))
+      | (14, [|recs; i; nas; cs|]) ->
+         let recs = Tac2ffi.to_array Tac2ffi.to_int recs in
+         let i = Tac2ffi.to_int i in
+         let def = to_rec_declaration (nas, cs) in
+         EConstr.mkFix ((recs, i), def)
+      | (15, [|i; nas; cs|]) ->
+         let i = Tac2ffi.to_int i in
+         let def = to_rec_declaration (nas, cs) in
+         EConstr.mkCoFix (i, def)
+      | (16, [|p; r; c|]) ->
+         let p = Tac2ffi.to_projection p in
+         let r = to_relevance r in
+         let c = Tac2ffi.to_constr c in
+         EConstr.mkProj (p, EConstr.ERelevance.make r, c)
+      | (17, [|n|]) ->
+         let n = Tac2ffi.to_uint63 n in
+         EConstr.mkInt n
+      | (18, [|f|]) ->
+         let f = Tac2ffi.to_float f in
+         EConstr.mkFloat f
+      | (19, [|s|]) ->
+         let s = Tac2ffi.to_pstring s in
+         EConstr.mkString s
+      | (20, [|u;t;def;ty|]) ->
+         let t = Tac2ffi.to_array Tac2ffi.to_constr t in
+         let def = Tac2ffi.to_constr def in
+         let ty = Tac2ffi.to_constr ty in
+         let u = to_instance u in
+         EConstr.mkArray(u,t,def,ty)
+      | _ -> assert false
+
+    let check c =
+      pf_apply @@ fun env sigma ->
+                  try
+                    let (sigma, _) = Typing.type_of env sigma c in
+                    Proofview.Unsafe.tclEVARS sigma >>= fun () ->
+                    return (of_result Tac2ffi.of_constr (Inl c))
+                  with e when CErrors.noncritical e ->
+                    let e = Exninfo.capture e in
+                    return (of_result Tac2ffi.of_constr (Inr e))
+
+    let liftn = EConstr.Vars.liftn
+    let substnl = EConstr.Vars.substnl
+    let closenl ids k c =
+      Proofview.tclEVARMAP >>= fun sigma ->
+      return (EConstr.Vars.substn_vars sigma k ids c)
+    let closednl n c =
+      Proofview.tclEVARMAP >>= fun sigma ->
+      return (EConstr.Vars.closedn sigma n c)
+
+    let noccur_between n m c =
+      Proofview.tclEVARMAP >>= fun sigma ->
+      return (EConstr.Vars.noccur_between sigma n m c)
+
+    let case ind =
+      Proofview.tclENV >>= fun env ->
+      try
+        let ans = Inductiveops.make_case_info env ind Constr.MatchStyle in
+        return (Tac2ffi.of_case ans)
+      with e when CErrors.noncritical e ->
+        throw Tac2ffi.err_notfound
+
+    type case = Constr.case_info
+
+    module Case = struct
+      open Constr
+
+      let equal x y = Ind.UserOrd.equal x.ci_ind y.ci_ind
+      let inductive case = case.ci_ind
+    end
+  end
 
   let in_context id t c =
     Proofview.Goal.goals >>= function
@@ -231,6 +496,19 @@ let () =
 let () = define "constr_relevance_equal" (relevance @-> relevance @-> eret bool) Ltac2Constr.Relevance.equal
 let () = define "constr_relevance_relevant" (ret relevance) Ltac2Constr.Relevance.relevant
 let () = define "constr_relevance_irrelevant" (ret relevance) Ltac2Constr.Relevance.irrelevant
+
+let () = define "constr_kind" (constr @-> eret valexpr) Ltac2Constr.Unsafe.kind
+let () = define "constr_make" (valexpr @-> eret constr) Ltac2Constr.Unsafe.make
+let () = define "constr_check" (constr @-> tac valexpr) Ltac2Constr.Unsafe.check
+let () = define "constr_liftn" (int @-> int @-> constr @-> ret constr) Ltac2Constr.Unsafe.liftn
+let () = define "constr_substnl" (list constr @-> int @-> constr @-> ret constr) Ltac2Constr.Unsafe.substnl
+let () = define "constr_closenl" (list ident @-> int @-> constr @-> tac constr) Ltac2Constr.Unsafe.closenl
+let () = define "constr_closedn" (int @-> constr @-> tac bool) Ltac2Constr.Unsafe.closednl
+let () = define "constr_noccur_between" (int @-> int @-> constr @-> tac bool) Ltac2Constr.Unsafe.noccur_between
+let () = define "constr_case" (inductive @-> tac valexpr) Ltac2Constr.Unsafe.case
+
+let () = define "constr_case_equal" (case @-> case @-> ret bool) Ltac2Constr.Unsafe.Case.equal
+let () = define "case_to_inductive" (case @-> ret inductive) Ltac2Constr.Unsafe.Case.inductive
 let () = define "constr_in_context" (ident @-> constr @-> thunk unit @-> tac constr) Ltac2Constr.in_context
 
 let () = define "constr_has_evar" (constr @-> tac bool) Ltac2Constr.has_evar

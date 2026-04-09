@@ -117,6 +117,34 @@ module Ltac2 : sig
       val irrelevant : t
     end
 
+    module Unsafe : sig
+      val kind : t -> Environ.env -> Evd.evar_map -> valexpr
+
+      val make : valexpr -> Environ.env -> Evd.evar_map -> t
+
+      val check : t -> valexpr Proofview.tactic
+
+      val liftn : int -> int -> t -> t
+
+      val substnl : EConstr.Vars.substl -> int -> t -> t
+
+      val closenl : ident list -> int -> t -> t Proofview.tactic
+
+      val closednl : int -> t -> bool Proofview.tactic
+
+      val noccur_between :
+        int -> int -> t -> bool Proofview.tactic
+
+      val case :
+        inductive -> valexpr Proofview.tactic
+
+      type case = Constr.case_info
+
+      module Case : sig
+        val equal : case -> case -> bool
+        val inductive : case -> inductive
+      end
+    end
 
     val in_context :
       variable ->
