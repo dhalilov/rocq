@@ -82,10 +82,6 @@ let to_relevance = function
     Sorts.RelevanceVar qvar
   | _ -> assert false
 
-(* XXX ltac2 exposes relevance internals so breaks ERelevance abstraction
-   ltac2 Constr.Binder.relevance probably needs to be made an abstract type *)
-let relevance = make_repr of_relevance to_relevance
-
 let of_rec_declaration (nas, ts, cs) =
   let binders = Array.map2 (fun na t -> (na, t)) nas ts in
   (Tac2ffi.of_array of_binder binders,
@@ -708,14 +704,6 @@ let () =
   in
   pf_apply ~catch_exceptions:true pretype
 
-
-let () =
-  define "constr_relevance_equal" (relevance @-> relevance @-> eret bool) @@ fun r1 r2 _ sigma ->
-  EConstr.ERelevance.(equal sigma (make r1) (make r2))
-
-let () = define "constr_relevance_relevant" (ret relevance) Sorts.Relevant
-
-let () = define "constr_relevance_irrelevant" (ret relevance) Sorts.Irrelevant
 
 (** Uint63 *)
 

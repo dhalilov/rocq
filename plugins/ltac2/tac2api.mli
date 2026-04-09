@@ -108,6 +108,15 @@ module Ltac2 : sig
       val relevance : t -> relevance
     end
 
+    module Relevance : sig
+      type t = Binder.relevance
+
+      val equal : t -> t -> Environ.env -> Evd.evar_map -> bool
+
+      val relevant : t
+      val irrelevant : t
+    end
+
 
     val in_context :
       variable ->

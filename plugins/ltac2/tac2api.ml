@@ -165,6 +165,15 @@ module Ltac2Constr = struct
     let relevance (na, _) = EConstr.Unsafe.to_relevance na.Context.binder_relevance
   end
 
+  module Relevance = struct
+    type t = Binder.relevance
+    let equal r1 r2 _env sigma =
+      EConstr.ERelevance.(equal sigma (make r1) (make r2))
+
+    let relevant = Sorts.Relevant
+    let irrelevant = Sorts.Irrelevant
+  end
+
 
   let in_context id t c =
     Proofview.Goal.goals >>= function
@@ -218,6 +227,10 @@ let () = define "constr_binder_name" (binder @-> ret (option ident)) Ltac2Constr
 let () = define "constr_binder_type" (binder @-> ret constr) Ltac2Constr.Binder.type_
 let () =
   define "constr_binder_relevance" (binder @-> ret relevance) Ltac2Constr.Binder.relevance
+
+let () = define "constr_relevance_equal" (relevance @-> relevance @-> eret bool) Ltac2Constr.Relevance.equal
+let () = define "constr_relevance_relevant" (ret relevance) Ltac2Constr.Relevance.relevant
+let () = define "constr_relevance_irrelevant" (ret relevance) Ltac2Constr.Relevance.irrelevant
 let () = define "constr_in_context" (ident @-> constr @-> thunk unit @-> tac constr) Ltac2Constr.in_context
 
 let () = define "constr_has_evar" (constr @-> tac bool) Ltac2Constr.has_evar
