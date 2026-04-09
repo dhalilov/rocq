@@ -635,6 +635,8 @@ module Ltac2 : sig
     val case_dep : kind
   end
 
+  module Std = Tac2stdlib.Ltac2Std
+
   module String : sig
     type t = bytes
 

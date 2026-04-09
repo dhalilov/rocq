@@ -2101,6 +2101,7 @@ module Ltac2 = struct
   module Pstring          = Ltac2Pstring
   module Rewrite          = Ltac2Rewrite
   module Scheme           = Ltac2Scheme
+  module Std              = Tac2stdlib.Ltac2Std
   module String           = Ltac2String
   module Uint63           = Ltac2Uint63
   module FSet             = Ltac2FSet
