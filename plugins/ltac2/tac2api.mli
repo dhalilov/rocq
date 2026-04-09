@@ -67,4 +67,11 @@ module Ltac2 : sig
     val concat :
       (int * valexpr array) list -> valexpr
   end
+
+  module Char : sig
+    type t = char
+
+    val of_int : int -> t Proofview.tactic
+    val to_int : t -> int
+  end
 end

@@ -58,6 +58,22 @@ let () = define "array_blit" (block @-> int @-> block @-> int @-> int @-> tac un
 let () = define "array_fill" (block @-> int @-> int @-> valexpr @-> tac unit) Ltac2Array.lowlevel_fill
 let () = define "array_concat" (list block @-> ret valexpr) Ltac2Array.concat
 
+(** Char *)
+
+module Ltac2Char = struct
+  type t = char
+
+  let of_int i =
+    try return (Char.chr i)
+    with Invalid_argument _ as e ->
+      let e, info = Exninfo.capture e in
+      throw ~info e
+
+  let to_int = Char.code
+end
+
+let () = define "char_of_int" (int @-> tac char) Ltac2Char.of_int
+let () = define "char_to_int" (char @-> ret int) Ltac2Char.to_int
 
 (** Ltac2 API *)
 
@@ -91,4 +107,5 @@ module Ltac2 = struct
   type exninfo = Exninfo.info
 
   module Array            = Ltac2Array
+  module Char             = Ltac2Char
 end
