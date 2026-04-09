@@ -78,6 +78,12 @@ let fail ?(info = Exninfo.null) e =
   set_bt info >>= fun info ->
   Proofview.tclZERO ~info e
 
+let assert_focussed =
+  Proofview.Goal.goals >>= fun gls ->
+  match gls with
+  | [_] -> Proofview.tclUNIT ()
+  | [] | _ :: _ :: _ -> throw Tac2ffi.err_notfocussed
+
 (** Array *)
 
 module Ltac2Array = struct
@@ -595,6 +601,212 @@ let () = define "constructor_inductive" (constructor @-> ret inductive) Ltac2Con
 let () = define "constructor_index" (constructor @-> ret int) Ltac2Constructor.index
 let () = define "constructor_print" (constructor @-> ret pp) Ltac2Constructor.print
 
+(** Control *)
+
+module Ltac2Control = struct
+  let zero (e, info) = fail ~info e
+  let zero_bt (e, _) info = Proofview.tclZERO ~info e
+
+  let plus x k = Proofview.tclOR (thaw x) k
+  let plus_bt run handle =
+    Proofview.tclOR (thaw run) (fun e -> handle e (snd e))
+
+  let once f = Proofview.tclONCE (thaw f)
+  let case f =
+    Proofview.tclCASE (thaw f) >>= begin function
+    | Proofview.Next (x, k) ->
+      let k (e,info) = set_bt info >>= fun info -> k (e,info) in
+      return (Ok (x, k))
+    | Proofview.Fail e -> return (Error e)
+    end
+
+  let numgoals () = Proofview.numgoals
+
+  let dispatch l =
+    let l = List.map (fun f -> thaw f) l in
+    Proofview.tclDISPATCH l
+
+  let extend lft tac rgt =
+    let lft = List.map (fun f -> thaw f) lft in
+    let tac = thaw tac in
+    let rgt = List.map (fun f -> thaw f) rgt in
+    Proofview.tclEXTEND lft tac rgt
+
+  let enter f =
+    let f = Proofview.tclIGNORE (thaw f) in
+    Proofview.tclINDEPENDENT f
+
+  let focus i j tac =
+    Proofview.tclFOCUS i j (thaw tac)
+
+  let shelve () = Proofview.shelve
+  let shelve_unifiable () = Proofview.shelve_unifiable
+  let unshelve t =
+    Proofview.with_shelf (thaw t) >>= fun (gls,v) ->
+    let gls = List.map Proofview.with_empty_state gls in
+    Proofview.Unsafe.tclGETGOALS >>= fun ogls ->
+    Proofview.Unsafe.tclSETGOALS (gls @ ogls) >>= fun () ->
+    return v
+
+  let new_goal ev =
+    Proofview.tclEVARMAP >>= fun sigma ->
+    if Evd.mem sigma ev then
+      let sigma = Evd.remove_future_goal sigma ev in
+      let sigma = Evd.unshelve sigma [ev] in
+      Proofview.Unsafe.tclEVARS sigma <*>
+        Proofview.Unsafe.tclNEWGOALS [Proofview.with_empty_state ev] <*>
+        Proofview.tclUNIT ()
+    else throw Tac2ffi.err_notfound
+
+  let cycle = Proofview.cycle
+  let reorder_goals l =
+    let is_permutation len l =
+      if not (Int.equal len (Array.length l)) then false else
+        let items = Array.make len false in
+        (* returns true iff [l] (seen as a 1-indexed list) maps ints in [1; len] to [1; len] injectively.
+           Thanks to pigeonhole theorem this means [l] is a permutation of [1; len]. *)
+        Array.for_all (fun x ->
+            if 1 <= x && x <= len && not items.(x-1) then
+              let () = items.(x-1) <- true in
+              true
+            else false)
+          l
+    in
+    Proofview.Unsafe.tclGETGOALS >>= fun gls ->
+    let len = List.length gls in
+    let l = Array.of_list l in
+    if not (is_permutation len l) then
+      throw (err_invalid_arg (Pp.str "reorder_goals"))
+    else
+      let gls = Array.of_list gls in
+      let gls = List.init len (fun i -> gls.(l.(i) - 1)) in
+      Proofview.Unsafe.tclSETGOALS gls
+
+  let goal () =
+    assert_focussed >>= fun () ->
+    Proofview.Goal.enter_one @@ fun gl ->
+    let sigma = Proofview.Goal.sigma gl in
+    let concl = Proofview.Goal.concl gl in
+    return (Reductionops.nf_evar sigma concl)
+
+  let hyp id =
+    pf_apply @@ fun env _ ->
+    let mem = try ignore (Environ.lookup_named id env); true with Not_found -> false in
+    if mem then return (EConstr.mkVar id)
+    else Tacticals.tclZEROMSG
+      (str "Hypothesis " ++ quote (Id.print id) ++ str " not found") (* FIXME: Do something more sensible *)
+
+  let hyp_value id =
+    pf_apply @@ fun env _ ->
+    match EConstr.lookup_named id env with
+    | d -> return (Context.Named.Declaration.get_value d)
+    | exception Not_found ->
+      Tacticals.tclZEROMSG
+      (str "Hypothesis " ++ quote (Id.print id) ++ str " not found") (* FIXME: Do something more sensible *)
+
+  let hyps () =
+    pf_apply @@ fun env _ ->
+    let open Context in
+    let open Named.Declaration in
+    let hyps = List.rev (Environ.named_context env) in
+    let map = function
+    | LocalAssum (id, t) ->
+      let t = EConstr.of_constr t in
+      Tac2ffi.of_tuple [|
+        Tac2ffi.of_ident id.binder_name;
+        Tac2ffi.of_option Tac2ffi.of_constr None;
+        Tac2ffi.of_constr t;
+      |]
+    | LocalDef (id, c, t) ->
+      let c = EConstr.of_constr c in
+      let t = EConstr.of_constr t in
+      Tac2ffi.of_tuple [|
+        Tac2ffi.of_ident id.binder_name;
+        Tac2ffi.of_option Tac2ffi.of_constr (Some c);
+        Tac2ffi.of_constr t;
+      |]
+    in
+    return (Tac2ffi.of_list map hyps)
+
+  let refine c =
+    let c = thaw c >>= fun c -> Proofview.tclUNIT ((), c, None) in
+    Proofview.Goal.enter @@ fun gl ->
+    Refine.generic_refine ~typecheck:true c gl
+
+  let solve_constraints () = Refine.solve_constraints
+  let with_holes x f = Tacticals.tclRUNWITHHOLES false (thaw x) f
+
+  let progress f = Proofview.tclPROGRESS (thaw f)
+  let abstract id f = Abstract.tclABSTRACT id (thaw f)
+
+  let time s f = Proofview.tclTIME s (thaw f)
+  let timeout i f = Proofview.tclTIMEOUT i (thaw f)
+  let timeoutf f64 f = Proofview.tclTIMEOUTF (Float64.to_float f64) (thaw f)
+
+  let check_interrupt () = Proofview.tclCHECKINTERRUPT
+
+  let clear_err_info (e,_) = (e, Exninfo.null)
+  let current_exninfo () =
+    return () >>= fun () ->
+    set_bt (Exninfo.reify())
+
+  let print_err (e, _) = CErrors.print e
+
+  (* Defined last to avoid shadowing issues in this module *)
+  let throw (e, info) = throw ~info e
+  let throw_bt (e, _) info =
+    Proofview.tclLIFT (Proofview.NonLogical.raise (e, info))
+end
+
+let () = define "throw" (exn @-> tac valexpr) Ltac2Control.throw
+let () = define "throw_bt" (exn @-> exninfo @-> tac valexpr) Ltac2Control.throw_bt
+let () = define "zero" (exn @-> tac valexpr) Ltac2Control.zero
+let () = define "zero_bt" (exn @-> exninfo @-> tac valexpr) Ltac2Control.zero_bt
+
+let () = define "plus" (thunk valexpr @-> fun1 exn valexpr @-> tac valexpr) Ltac2Control.plus
+let () = define "plus_bt" (thunk valexpr @-> fun2 exn exninfo valexpr @-> tac valexpr) Ltac2Control.plus_bt
+
+let () = define "once" (thunk valexpr @-> tac valexpr) Ltac2Control.once
+let () = define "case" (thunk valexpr @-> tac (result (pair valexpr (fun1 exn valexpr)))) Ltac2Control.case
+
+let () = define "numgoals" (unit @-> tac int) Ltac2Control.numgoals
+
+let () = define "dispatch" (list (thunk unit) @-> tac unit) Ltac2Control.dispatch
+let () = define "extend" (list (thunk unit) @-> thunk unit @-> list (thunk unit) @-> tac unit) Ltac2Control.extend
+
+let () = define "enter" (thunk unit @-> tac unit) Ltac2Control.enter
+let () = define "focus" (int @-> int @-> thunk valexpr @-> tac valexpr) Ltac2Control.focus
+
+let () = define "shelve" (unit @-> tac unit) Ltac2Control.shelve
+let () = define "shelve_unifiable" (unit @-> tac unit) Ltac2Control.shelve_unifiable
+let () = define "unshelve" (thunk valexpr @-> tac valexpr) Ltac2Control.unshelve
+
+let () = define "new_goal" (evar @-> tac unit) Ltac2Control.new_goal
+let () = define "reorder_goals" (list int @-> tac unit) Ltac2Control.reorder_goals
+let () = define "cycle" (int @-> tac unit) Ltac2Control.cycle
+
+let () = define "goal" (unit @-> tac constr) Ltac2Control.goal
+let () = define "hyp" (ident @-> tac constr) Ltac2Control.hyp
+let () = define "hyp_value" (ident @-> tac (option constr)) Ltac2Control.hyp_value
+let () = define "hyps" (unit @-> tac valexpr) Ltac2Control.hyps
+
+let () = define "refine" (thunk constr @-> tac unit) Ltac2Control.refine
+let () = define "solve_constraints" (unit @-> tac unit) Ltac2Control.solve_constraints
+let () = define "with_holes" (thunk valexpr @-> fun1 valexpr valexpr @-> tac valexpr) Ltac2Control.with_holes
+
+let () = define "progress" (thunk valexpr @-> tac valexpr) Ltac2Control.progress
+let () = define "abstract" (option ident @-> thunk unit @-> tac unit) Ltac2Control.abstract
+
+let () = define "time" (option string @-> thunk valexpr @-> tac valexpr) Ltac2Control.time
+let () = define "timeout" (int @-> thunk valexpr @-> tac valexpr) Ltac2Control.timeout
+let () = define "timeoutf" (float @-> thunk valexpr @-> tac valexpr) Ltac2Control.timeoutf
+
+let () = define "check_interrupt" (unit @-> tac unit) Ltac2Control.check_interrupt
+
+let () = define "clear_err_info" (err @-> ret err) Ltac2Control.clear_err_info
+let () = define "current_exninfo" (unit @-> tac exninfo) Ltac2Control.current_exninfo
+
+let () = define "print_err" (err @-> ret pp) Ltac2Control.print_err
 (** Ltac2 API *)
 
 module Ltac2 = struct
@@ -631,4 +843,5 @@ module Ltac2 = struct
   module Constant         = Ltac2Constant
   module Constr           = Ltac2Constr
   module Constructor      = Ltac2Constructor
+  module Control          = Ltac2Control
 end

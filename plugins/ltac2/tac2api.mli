@@ -203,4 +203,106 @@ module Ltac2 : sig
     val index : t -> int
     val print : t -> message
   end
+
+  module Control : sig
+    val throw : exn -> 'a Proofview.tactic
+
+    val zero : exn -> 'a Proofview.tactic
+
+    val plus :
+      (unit -> 'a Proofview.tactic) ->
+      (exn -> 'a Proofview.tactic) ->
+      'a Proofview.tactic
+
+    val once :
+      (unit -> 'a Proofview.tactic) -> 'a Proofview.tactic
+
+    val case :
+      (unit -> 'a Proofview.tactic) ->
+      ('a * (exn -> 'a Proofview.tactic), exn) result Proofview.tactic
+
+    val numgoals : unit -> int Proofview.tactic
+
+    val dispatch :
+      (unit -> unit Proofview.tactic) list ->
+      unit Proofview.tactic
+
+    val extend :
+      (unit -> unit Proofview.tactic) list ->
+      (unit -> unit Proofview.tactic) ->
+      (unit -> unit Proofview.tactic) list ->
+      unit Proofview.tactic
+
+    val enter :
+      (unit -> 'a Proofview.tactic) -> unit Proofview.tactic
+
+    val focus :
+      int ->
+      int ->
+      (unit -> 'a Proofview.tactic) ->
+      'a Proofview.tactic
+
+    val shelve : unit -> unit Proofview.tactic
+    val shelve_unifiable : unit -> unit Proofview.tactic
+
+    val unshelve :
+      (unit -> 'a Proofview.tactic) -> 'a Proofview.tactic
+
+    val new_goal : Proofview_monad.goal -> unit Proofview.tactic
+    val cycle : int -> unit Proofview.tactic
+    val reorder_goals : Int.t list -> unit Proofview.tactic
+    val goal : unit -> constr Proofview.tactic
+    val hyp : variable -> constr Proofview.tactic
+
+    val hyp_value :
+      variable -> constr option Proofview.tactic
+
+    val hyps : unit -> valexpr Proofview.tactic
+
+    val refine :
+      (unit -> constr Proofview.tactic) ->
+      unit Proofview.tactic
+
+    val solve_constraints : unit -> unit Proofview.tactic
+
+    val with_holes :
+      (unit -> 'a Proofview.tactic) ->
+      ('a -> 'b Proofview.tactic) ->
+      'b Proofview.tactic
+
+    val progress :
+      (unit -> 'a Proofview.tactic) -> 'a Proofview.tactic
+
+    val abstract :
+      ident option ->
+      (unit -> unit Proofview.tactic) ->
+      unit Proofview.tactic
+
+    val time :
+      string option ->
+      (unit -> 'a Proofview.tactic) ->
+      'a Proofview.tactic
+
+    val timeout :
+      int -> (unit -> 'a Proofview.tactic) -> 'a Proofview.tactic
+
+    val timeoutf :
+      float ->
+      (unit -> 'a Proofview.tactic) ->
+      'a Proofview.tactic
+
+    val check_interrupt : unit -> unit Proofview.tactic
+    val clear_err_info : err -> err
+    val current_exninfo : unit -> exninfo Proofview.tactic
+    val print_err : err -> message
+
+    val throw_bt : exn -> exninfo -> 'b Proofview.tactic
+
+    val zero_bt : exn -> exninfo -> 'a Proofview.tactic
+
+    val plus_bt :
+      (unit -> 'a Proofview.tactic) ->
+      (exn -> exninfo -> 'a Proofview.tactic) ->
+      'a Proofview.tactic
+  end
 end
