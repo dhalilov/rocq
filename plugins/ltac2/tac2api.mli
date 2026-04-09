@@ -633,4 +633,19 @@ module Ltac2 : sig
     val case_nodep : kind
     val case_dep : kind
   end
+
+  module String : sig
+    type t = bytes
+
+    val make : int -> char -> t Proofview.tactic
+    val length : t -> int
+    val set : t -> int -> char -> unit Proofview.tactic
+    val get : t -> int -> char Proofview.tactic
+    val concat : t -> t list -> t
+    val app : t -> t -> t
+    val sub : t -> int -> int -> t Proofview.tactic
+
+    val equal : t -> t -> bool
+    val compare : t -> t -> int
+  end
 end

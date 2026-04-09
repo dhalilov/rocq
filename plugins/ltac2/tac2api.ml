@@ -1691,6 +1691,44 @@ let () = define "scheme_kind_beq" (ret scheme_kind) Ltac2Scheme.beq
 let () = define "scheme_kind_dec_bl" (ret scheme_kind) Ltac2Scheme.dec_bl
 let () = define "scheme_kind_dec_lb" (ret scheme_kind) Ltac2Scheme.dec_lb
 let () = define "scheme_kind_eq_dec" (ret scheme_kind) Ltac2Scheme.eq_dec
+
+(** String *)
+
+module Ltac2String = struct
+  type t = Bytes.t
+
+  let make n c =
+    try return (Bytes.make n c)
+    with Invalid_argument _ -> throw Tac2ffi.err_outofbounds
+
+  let length = Bytes.length
+  let set s n c =
+    try Bytes.set s n c; return ()
+    with Invalid_argument _ -> throw Tac2ffi.err_outofbounds
+  let get s n =
+    try return (Bytes.get s n)
+    with Invalid_argument _ -> throw Tac2ffi.err_outofbounds
+
+  let concat = Bytes.concat
+  let app a b = Bytes.concat Bytes.empty [a; b]
+  let sub s off len =
+    try return (Bytes.sub s off len)
+    with Invalid_argument _ -> throw Tac2ffi.err_outofbounds
+
+  let equal = Bytes.equal
+  let compare = Bytes.compare
+end
+
+let () = define "string_make" (int @-> char @-> tac bytes) Ltac2String.make
+let () = define "string_length" (bytes @-> ret int) Bytes.length
+let () = define "string_set" (bytes @-> int @-> char @-> tac unit) Ltac2String.set
+let () = define "string_get" (bytes @-> int @-> tac char) Ltac2String.get
+let () = define "string_concat" (bytes @-> list bytes @-> ret bytes) Ltac2String.concat
+let () = define "string_app" (bytes @-> bytes @-> ret bytes) Ltac2String.app
+let () = define "string_sub" (bytes @-> int @-> int @-> tac bytes) Ltac2String.sub
+
+let () = define "string_equal" (bytes @-> bytes @-> ret bool) Ltac2String.equal
+let () = define "string_compare" (bytes @-> bytes @-> ret int) Ltac2String.compare
 (** Ltac2 API *)
 
 module Ltac2 = struct
@@ -1743,4 +1781,5 @@ module Ltac2 = struct
   module Pstring          = Ltac2Pstring
   module Rewrite          = Ltac2Rewrite
   module Scheme           = Ltac2Scheme
+  module String           = Ltac2String
 end

@@ -115,36 +115,6 @@ let pf_apply ?(catch_exceptions=false) f =
   | _ :: _ :: _ ->
     throw Tac2ffi.err_notfocussed
 
-(** String *)
-
-let () =
-  define "string_make" (int @-> char @-> tac bytes) @@ fun n c ->
-  try return (Bytes.make n c) with Invalid_argument _ -> throw Tac2ffi.err_outofbounds
-
-let () = define "string_length" (bytes @-> ret int) Bytes.length
-
-let () =
-  define "string_set" (bytes @-> int @-> char @-> tac unit) @@ fun s n c ->
-  try Bytes.set s n c; return () with Invalid_argument _ -> throw Tac2ffi.err_outofbounds
-
-let () =
-  define "string_get" (bytes @-> int @-> tac char) @@ fun s n ->
-  try return (Bytes.get s n) with Invalid_argument _ -> throw Tac2ffi.err_outofbounds
-
-let () = define "string_concat" (bytes @-> list bytes @-> ret bytes) Bytes.concat
-
-let () =
-  define "string_app" (bytes @-> bytes @-> ret bytes) @@ fun a b ->
-  Bytes.concat Bytes.empty [a; b]
-
-let () =
-  define "string_sub" (bytes @-> int @-> int @-> tac bytes) @@ fun s off len ->
-  try return (Bytes.sub s off len) with Invalid_argument _ -> throw Tac2ffi.err_outofbounds
-
-let () = define "string_equal" (bytes @-> bytes @-> ret bool) Bytes.equal
-
-let () = define "string_compare" (bytes @-> bytes @-> ret int) Bytes.compare
-
 
 (** Uint63 *)
 
