@@ -690,4 +690,21 @@ module Ltac2 : sig
       (unit -> 'a Proofview.tactic) ->
       'a Proofview.tactic
   end
+
+  module Unification : sig
+    type conv_flag = Evd.conv_pb
+
+    val conv :
+      conv_flag ->
+      TransparentState.t ->
+      constr ->
+      constr ->
+      bool Proofview.tactic
+
+    val unify :
+      TransparentState.t ->
+      constr ->
+      constr ->
+      unit Proofview.tactic
+  end
 end

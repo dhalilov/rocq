@@ -1857,6 +1857,28 @@ let () = define "mem_var_transparent_state"
 let () = define "with_strategy"
            (strategy_level @-> list reference @-> thunk valexpr @-> tac valexpr)
            Ltac2TransparentState.with_strategy
+
+(** Unification *)
+
+let to_conv_pb v = match Tac2ffi.to_int v with
+  | 0 -> Conversion.CONV
+  | 1 -> Conversion.CUMUL
+  | _ -> assert false
+
+module Ltac2Unification = struct
+  type conv_flag = Evd.conv_pb
+
+  let conv pb ts c1 c2 =
+    Tac2core.pf_apply @@ fun env sigma ->
+                         match Reductionops.infer_conv ~pb ~ts env sigma c1 c2 with
+                         | Some sigma -> Proofview.Unsafe.tclEVARS sigma <*> return true
+                         | None -> return false
+
+  let unify = Tac2tactics.evarconv_unify
+end
+
+let () = define "infer_conv" (to_conv_pb @--> transparent_state @-> constr @-> constr @-> tac bool) Ltac2Unification.conv
+let () = define "evarconv_unify" (transparent_state @-> constr @-> constr @-> tac unit) Ltac2Unification.unify
 (** Ltac2 API *)
 
 module Ltac2 = struct
@@ -1912,4 +1934,5 @@ module Ltac2 = struct
   module String           = Ltac2String
   module Uint63           = Ltac2Uint63
   module TransparentState = Ltac2TransparentState
+  module Unification      = Ltac2Unification
 end
