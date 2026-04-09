@@ -274,6 +274,141 @@ module Ltac2Std = struct
   type advanced_flag = Tac2types.advanced_flag
   type move_location = Id.t Logic.move_location
   type inversion_kind = Inv.inversion_kind
+
+  let intros = Tac2tactics.intros_patterns
+
+  let apply = Tac2tactics.apply
+
+  let elim = Tac2tactics.elim
+  let case = Tac2tactics.general_case_analysis
+
+  let generalize = Tac2tactics.generalize
+
+  let assert_ = Tac2tactics.assert_
+  let enough c tac ipat =
+    let tac = Option.map (fun o -> Option.map (fun f -> thaw f) o) tac in
+    Tac2tactics.forward false tac ipat c
+
+  let pose na c = Tactics.letin_tac None na c None Locusops.nowhere
+
+  let set ev p cl =
+    Proofview.tclEVARMAP >>= fun sigma ->
+    thaw p >>= fun (na, c) ->
+    Tac2tactics.letin_pat_tac ev None na (Some sigma, c) cl
+
+  let remember ev na c eqpat cl =
+    let eqpat = Option.default (IntroNaming IntroAnonymous) eqpat in
+    match eqpat with
+    | IntroNaming eqpat ->
+       Proofview.tclEVARMAP >>= fun sigma ->
+       thaw c >>= fun c ->
+       Tac2tactics.letin_pat_tac ev (Some (true, eqpat)) na (Some sigma, c) cl
+    | _ ->
+       Tacticals.tclZEROMSG (Pp.str "Invalid pattern for remember")
+
+  let destruct = Tac2tactics.induction_destruct false
+  let induction = Tac2tactics.induction_destruct true
+
+  let exfalso () = Tactics.exfalso
+
+  module Red = struct
+    type t = Redexpr.red_expr
+
+    let red = Red
+    let hnf = Hnf
+    let simpl = Tac2tactics.simpl
+    let cbv = Tac2tactics.cbv
+    let cbn = Tac2tactics.cbn
+    let lazy_ = Tac2tactics.lazy_
+    let unfold = Tac2tactics.unfold
+    let fold cs = Fold cs
+    let pattern = Tac2tactics.pattern
+
+    let vm = Tac2tactics.vm
+    let native = Tac2tactics.native
+  end
+
+  let eval_in = Tac2tactics.reduce_in
+  let eval = Tac2tactics.reduce_constr
+
+  let change = Tac2tactics.change
+  let rewrite = Tac2tactics.rewrite
+  let setoid_rewrite = Tac2tactics.setoid_rewrite
+
+  let inversion = Tac2tactics.inversion
+
+  let reflexivity () = Tactics.intros_reflexivity
+
+  let move = Tactics.move_hyp
+
+  let intro id mv =
+    let mv = Option.default Logic.MoveLast mv in
+    Tactics.intro_move id mv
+
+  let specialize = Tac2tactics.specialize
+
+  let assumption () = Tactics.assumption
+  let eassumption () = Eauto.e_assumption
+
+  let transitivity c = Tactics.intros_transitivity (Some c)
+  let etransitivity () = Tactics.intros_transitivity None
+
+  let cut = Tactics.cut
+
+  let left = Tac2tactics.left_with_bindings
+  let right = Tac2tactics.right_with_bindings
+
+  let intros_until = Tactics.intros_until
+
+  let exact_no_check = Tactics.exact_no_check
+  let vm_cast_no_check = Tactics.vm_cast_no_check
+  let native_cast_no_check = Tactics.native_cast_no_check
+
+  let constructor ev = Tactics.any_constructor ev None
+  let constructor_n ev n bnd = Tac2tactics.constructor_tac ev None n bnd
+
+  let symmetry = Tac2tactics.symmetry
+
+  let split = Tac2tactics.split_with_bindings
+  let rename = Tactics.rename_hyp
+
+  let revert = Generalize.revert
+  let admit () = Proofview.give_up
+
+  let fix = FixTactics.fix
+  let cofix = FixTactics.cofix
+
+  let clear = Tactics.clear
+  let keep = Tactics.keep
+  let clearbody = Tactics.clear_body
+
+  let discriminate = Tac2tactics.discriminate
+  let injection = Tac2tactics.injection
+
+  let absurd = Contradiction.absurd
+  let contradiction = Tac2tactics.contradiction
+
+  let autorewrite all by ids cl = Tac2tactics.autorewrite ~all by ids cl
+
+  let subst = Equality.subst
+  let subst_all () = return () >>= fun () -> Equality.subst_all ()
+
+  type debug = Hints.debug
+  type strategy = Class_tactics.search_strategy
+
+  let trivial = Tac2tactics.trivial
+  let auto = Tac2tactics.auto
+  let eauto = Tac2tactics.eauto
+  let typeclasses_eauto = Tac2tactics.typeclasses_eauto
+
+  let resolve_tc = Class_tactics.resolve_tc
+
+  let unify = Tac2tactics.unify
+
+  let congruence = Tac2tactics.congruence
+  let simple_congruence = Tac2tactics.simple_congruence
+
+  let f_equal = Tac2tactics.f_equal
 end
 
 (** Tactics from Tacexpr *)
@@ -281,185 +416,134 @@ end
 let () =
   define "tac_intros"
     (bool @-> intro_patterns @-> tac unit)
-    Tac2tactics.intros_patterns
+    Ltac2Std.intros
 
 let () =
   define "tac_apply"
     (bool @-> bool @-> list (thunk constr_with_bindings) @->
       option (pair ident (option intro_pattern)) @-> tac unit)
-    Tac2tactics.apply
+    Ltac2Std.apply
 
 let () =
   define "tac_elim"
     (bool @-> constr_with_bindings @-> option constr_with_bindings @-> tac unit)
-    Tac2tactics.elim
+    Ltac2Std.elim
 
 let () =
   define "tac_case"
     (bool @-> constr_with_bindings @-> tac unit)
-    Tac2tactics.general_case_analysis
+    Ltac2Std.case
 
 let () =
   define "tac_generalize"
     (list generalize_arg @-> tac unit)
-    Tac2tactics.generalize
+    Ltac2Std.generalize
 
 let () =
   define "tac_assert"
     (assertion @-> tac unit)
-    Tac2tactics.assert_
+    Ltac2Std.assert_
 
-let tac_enough c tac ipat =
-  let tac = Option.map (fun o -> Option.map (fun f -> thaw f) o) tac in
-  Tac2tactics.forward false tac ipat c
 let () =
   define "tac_enough"
     (constr @-> option (option (thunk unit)) @-> option intro_pattern @-> tac unit)
-    tac_enough
+    Ltac2Std.enough
 
-let tac_pose na c = Tactics.letin_tac None na c None Locusops.nowhere
 let () =
   define "tac_pose"
     (name @-> constr @-> tac unit)
-    tac_pose
+    Ltac2Std.pose
 
-let tac_set ev p cl =
-  Proofview.tclEVARMAP >>= fun sigma ->
-  thaw p >>= fun (na, c) ->
-  Tac2tactics.letin_pat_tac ev None na (Some sigma, c) cl
 let () =
   define "tac_set"
     (bool @-> thunk (pair name constr) @-> clause @-> tac unit)
-    tac_set
+    Ltac2Std.set
 
-let tac_remember ev na c eqpat cl =
-  let eqpat = Option.default (IntroNaming IntroAnonymous) eqpat in
-  match eqpat with
-  | IntroNaming eqpat ->
-    Proofview.tclEVARMAP >>= fun sigma ->
-    thaw c >>= fun c ->
-    Tac2tactics.letin_pat_tac ev (Some (true, eqpat)) na (Some sigma, c) cl
-  | _ ->
-    Tacticals.tclZEROMSG (Pp.str "Invalid pattern for remember")
 let () =
   define "tac_remember"
     (bool @-> name @-> thunk constr @-> option intro_pattern @-> clause @-> tac unit)
-    tac_remember
+    Ltac2Std.remember
 
 let () =
   define "tac_destruct"
     (bool @-> list induction_clause @-> option constr_with_bindings @-> tac unit)
-    (Tac2tactics.induction_destruct false)
+    Ltac2Std.destruct
 
 let () =
   define "tac_induction"
     (bool @-> list induction_clause @-> option constr_with_bindings @-> tac unit)
-    (Tac2tactics.induction_destruct true)
+    Ltac2Std.induction
 
-let () = define "tac_exfalso" (unit @-> tac unit) @@ fun () ->
-  Tactics.exfalso
+let () =
+  define "tac_exfalso"
+    (unit @-> tac unit)
+    Ltac2Std.exfalso
 
 (** Reductions *)
 
 let () =
   define "reduce_in"
     (reduction @-> clause @-> tac unit)
-    Tac2tactics.reduce_in
+    Ltac2Std.eval_in
 
 let () =
   define "reduce_constr"
     (reduction @-> constr @-> tac constr)
-    Tac2tactics.reduce_constr
+    Ltac2Std.eval
 
-let () = define "red"
-    (ret reduction)
-    Red
+let () = define "red" (ret reduction) Ltac2Std.Red.red
 
-let () = define "hnf"
-    (ret reduction)
-    Hnf
+let () = define "hnf" (ret reduction) Ltac2Std.Red.hnf
 
-let () =
-  define "simpl"
-    (red_flags @-> red_context @-> tac reduction)
-    Tac2tactics.simpl
+let () = define "simpl" (red_flags @-> red_context @-> tac reduction) Ltac2Std.Red.simpl
 
-let () =
-  define "cbv"
-    (red_flags @-> tac reduction)
-    Tac2tactics.cbv
+let () = define "cbv" (red_flags @-> tac reduction) Ltac2Std.Red.cbv
 
-let () =
-  define "cbn"
-    (red_flags @-> tac reduction)
-    Tac2tactics.cbn
+let () = define "cbn" (red_flags @-> tac reduction) Ltac2Std.Red.cbn
 
-let () =
-  define "lazy"
-    (red_flags @-> tac reduction)
-    Tac2tactics.lazy_
+let () = define "lazy" (red_flags @-> tac reduction) Ltac2Std.Red.lazy_
 
-let () =
-  define "unfold"
-    (list reference_with_occs @-> tac reduction)
-    Tac2tactics.unfold
+let () = define "unfold" (list reference_with_occs @-> tac reduction) Ltac2Std.Red.unfold
 
-let () =
-  define "fold"
-    (list constr @-> ret reduction)
-    (fun cs -> Fold cs)
+let () = define "fold" (list constr @-> ret reduction) Ltac2Std.Red.fold
 
-let () =
-  define "pattern"
-    (list constr_with_occs @-> ret reduction)
-    Tac2tactics.pattern
+let () = define "pattern" (list constr_with_occs @-> ret reduction) Ltac2Std.Red.pattern
 
-let () =
-  define "vm"
-    (red_context @-> ret reduction)
-    Tac2tactics.vm
+let () = define "vm" (red_context @-> ret reduction) Ltac2Std.Red.vm
 
-let () =
-  define "native"
-    (red_context @-> ret reduction)
-    Tac2tactics.native
+let () = define "native" (red_context @-> ret reduction) Ltac2Std.Red.native
 
 
+(** Rewritings *)
 
 let () =
   define "tac_change"
     (option pattern @-> fun1 (array constr) constr @-> clause @-> tac unit)
-    Tac2tactics.change
+    Ltac2Std.change
 
 let () =
   define "tac_rewrite"
     (bool @-> list rewriting @-> clause @-> option (thunk unit) @-> tac unit)
-    Tac2tactics.rewrite
+    Ltac2Std.rewrite
 
 let () =
   define "tac_setoid_rewrite"
     (bool @-> uthaw constr_with_bindings @--> occurrences @-> option ident @-> tac unit)
-    Tac2tactics.setoid_rewrite
+    Ltac2Std.setoid_rewrite
 
 let () =
   define "tac_inversion"
     (inversion_kind @-> destruction_arg @-> option intro_pattern @->
       option (list ident) @-> tac unit)
-    Tac2tactics.inversion
+    Ltac2Std.inversion
 
 (** Tactics from coretactics *)
 
-let () =
-  define "tac_reflexivity" (unit @-> tac unit) (fun _ -> Tactics.intros_reflexivity)
+let () = define "tac_reflexivity" (unit @-> tac unit) Ltac2Std.reflexivity
 
-let () =
-  define "tac_move" (ident @-> move_location @-> tac unit) Tactics.move_hyp
+let () = define "tac_move" (ident @-> move_location @-> tac unit) Ltac2Std.move
 
-let tac_intro id mv =
-  let mv = Option.default Logic.MoveLast mv in
-  Tactics.intro_move id mv
-let () =
-  define "tac_intro" (option ident @-> option move_location @-> tac unit) tac_intro
+let () = define "tac_intro" (option ident @-> option move_location @-> tac unit) Ltac2Std.intro
 
 (*
 
@@ -469,153 +553,121 @@ END
 
 *)
 
-let () =
-  define "tac_assumption" (unit @-> tac unit) (fun _ -> Tactics.assumption)
+let () = define "tac_assumption" (unit @-> tac unit) Ltac2Std.assumption
 
-let () =
-  define "tac_eassumption" (unit @-> tac unit) (fun _ -> Eauto.e_assumption)
+let () = define "tac_eassumption" (unit @-> tac unit) Ltac2Std.eassumption
 
-let () =
-  define "tac_transitivity" (constr @-> tac unit)
-    (fun c -> Tactics.intros_transitivity (Some c))
+let () = define "tac_transitivity" (constr @-> tac unit) Ltac2Std.transitivity
 
-let () =
-  define "tac_etransitivity" (unit @-> tac unit)
-    (fun _ -> Tactics.intros_transitivity None)
+let () = define "tac_etransitivity" (unit @-> tac unit) Ltac2Std.etransitivity
 
-let () =
-  define "tac_cut" (constr @-> tac unit) Tactics.cut
+let () = define "tac_cut" (constr @-> tac unit) Ltac2Std.cut
 
-let () =
-  define "tac_left" (bool @-> bindings @-> tac unit) Tac2tactics.left_with_bindings
+let () = define "tac_left" (bool @-> bindings @-> tac unit) Ltac2Std.left
 
-let () =
-  define "tac_right" (bool @-> bindings @-> tac unit) Tac2tactics.right_with_bindings
+let () = define "tac_right" (bool @-> bindings @-> tac unit) Ltac2Std.right
 
-let () =
-  define "tac_introsuntil" (qhyp @-> tac unit) Tactics.intros_until
+let () = define "tac_introsuntil" (qhyp @-> tac unit) Ltac2Std.intros_until
 
-let () =
-  define "tac_exactnocheck" (constr @-> tac unit) Tactics.exact_no_check
+let () = define "tac_exactnocheck" (constr @-> tac unit) Ltac2Std.exact_no_check
 
-let () =
-  define "tac_vmcastnocheck" (constr @-> tac unit) Tactics.vm_cast_no_check
+let () = define "tac_vmcastnocheck" (constr @-> tac unit) Ltac2Std.vm_cast_no_check
 
-let () =
-  define "tac_nativecastnocheck" (constr @-> tac unit) Tactics.native_cast_no_check
+let () = define "tac_nativecastnocheck" (constr @-> tac unit) Ltac2Std.native_cast_no_check
 
-let () =
-  define "tac_constructor" (bool @-> tac unit) (fun ev -> Tactics.any_constructor ev None)
+let () = define "tac_constructor" (bool @-> tac unit) Ltac2Std.constructor
 
-let () =
-  define "tac_constructorn" (bool @-> int @-> bindings @-> tac unit)
-    (fun ev n bnd -> Tac2tactics.constructor_tac ev None n bnd)
+let () = define "tac_constructorn" (bool @-> int @-> bindings @-> tac unit) Ltac2Std.constructor_n
 
-let () =
-  define "tac_specialize"
-    (constr_with_bindings @-> option intro_pattern @-> tac unit)
-    Tac2tactics.specialize
+let () = define "tac_specialize" (constr_with_bindings @-> option intro_pattern @-> tac unit) Ltac2Std.specialize
 
-let () =
-  define "tac_symmetry" (clause @-> tac unit) Tac2tactics.symmetry
+let () = define "tac_symmetry" (clause @-> tac unit) Ltac2Std.symmetry
 
-let () =
-  define "tac_split" (bool @-> bindings @-> tac unit) Tac2tactics.split_with_bindings
+let () = define "tac_split" (bool @-> bindings @-> tac unit) Ltac2Std.split
 
-let () =
-  define "tac_rename" (list (pair ident ident) @-> tac unit) Tactics.rename_hyp
+let () = define "tac_rename" (list (pair ident ident) @-> tac unit) Ltac2Std.rename
 
-let () =
-  define "tac_revert" (list ident @-> tac unit) Generalize.revert
+let () = define "tac_revert" (list ident @-> tac unit) Ltac2Std.revert
 
-let () =
-  define "tac_admit" (unit @-> tac unit) (fun _ -> Proofview.give_up)
+let () = define "tac_admit" (unit @-> tac unit) Ltac2Std.admit
 
-let () =
-  define "tac_fix" (ident @-> int @-> tac unit) FixTactics.fix
+let () = define "tac_fix" (ident @-> int @-> tac unit) Ltac2Std.fix
 
-let () =
-  define "tac_cofix" (ident @-> tac unit) FixTactics.cofix
+let () = define "tac_cofix" (ident @-> tac unit) Ltac2Std.cofix
 
-let () =
-  define "tac_clear" (list ident @-> tac unit) Tactics.clear
+let () = define "tac_clear" (list ident @-> tac unit) Ltac2Std.clear
 
-let () =
-  define "tac_keep" (list ident @-> tac unit) Tactics.keep
+let () = define "tac_keep" (list ident @-> tac unit) Ltac2Std.keep
 
-let () =
-  define "tac_clearbody" (list ident @-> tac unit) Tactics.clear_body
+let () = define "tac_clearbody" (list ident @-> tac unit) Ltac2Std.clearbody
 
 (** Tactics from extratactics *)
 
 let () =
   define "tac_discriminate"
     (bool @-> option destruction_arg @-> tac unit)
-    Tac2tactics.discriminate
+    Ltac2Std.discriminate
 
-let () =
-  define "tac_injection"
-    (bool @-> option intro_patterns @-> option destruction_arg @-> tac unit)
-    Tac2tactics.injection
+let () = define "tac_injection"
+           (bool @-> option intro_patterns @-> option destruction_arg @-> tac unit)
+           Ltac2Std.injection
 
-let () =
-  define "tac_absurd" (constr @-> tac unit) Contradiction.absurd
+let () = define "tac_absurd" (constr @-> tac unit) Ltac2Std.absurd
 
 let () =
   define "tac_contradiction"
     (option constr_with_bindings @-> tac unit)
-    Tac2tactics.contradiction
+    Ltac2Std.contradiction
 
 let () =
   define "tac_autorewrite"
     (bool @-> option (thunk unit) @-> list ident @-> clause @-> tac unit)
-    (fun all by ids cl -> Tac2tactics.autorewrite ~all by ids cl)
+    Ltac2Std.autorewrite
 
-let () =
-  define "tac_subst" (list ident @-> tac unit) Equality.subst
+let () = define "tac_subst" (list ident @-> tac unit) Ltac2Std.subst
 
 let () =
   define "tac_substall"
     (unit @-> tac unit)
-    (fun _ -> return () >>= fun () -> Equality.subst_all ())
+    Ltac2Std.subst_all
 
 (** Auto *)
 
 let () =
   define "tac_trivial"
     (debug @-> list reference @-> option (list ident) @-> tac unit)
-    Tac2tactics.trivial
+    Ltac2Std.trivial
 
 let () =
   define "tac_eauto"
     (debug @-> option int @-> list reference @-> option (list ident) @-> tac unit)
-    Tac2tactics.eauto
+    Ltac2Std.eauto
 
 let () =
   define "tac_auto"
     (debug @-> option int @-> list reference @-> option (list ident) @-> tac unit)
-    Tac2tactics.auto
+    Ltac2Std.auto
 
 let () =
   define "tac_typeclasses_eauto"
     (option strategy @-> option int @-> option (list ident) @-> tac unit)
-    Tac2tactics.typeclasses_eauto
+    Ltac2Std.typeclasses_eauto
 
 let () =
-  define "tac_resolve_tc" (constr @-> tac unit) Class_tactics.resolve_tc
+  define "tac_resolve_tc" (constr @-> tac unit) Ltac2Std.resolve_tc
 
 let () =
-  define "tac_unify" (constr @-> constr @-> tac unit) Tac2tactics.unify
+  define "tac_unify" (constr @-> constr @-> tac unit) Ltac2Std.unify
 
 let () =
   define "congruence"
-  (option int @-> option (list constr) @-> tac unit)
-  Tac2tactics.congruence
+    (option int @-> option (list constr) @-> tac unit)
+    Ltac2Std.congruence
 
 let () =
   define "simple_congruence"
-  (option int @-> option (list constr) @-> tac unit)
-  Tac2tactics.simple_congruence
+    (option int @-> option (list constr) @-> tac unit)
+    Ltac2Std.simple_congruence
 
 let () = define "f_equal" (unit @-> tac unit) @@ fun () ->
-    Tac2tactics.f_equal
+    Ltac2Std.f_equal
