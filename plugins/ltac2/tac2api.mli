@@ -547,4 +547,56 @@ module Ltac2 : sig
     val equal : t -> t -> bool
     val compare : t -> t -> int
   end
+
+  module Rewrite : sig
+    module Strategy : sig
+      type t = Rewrite.strategy
+
+      val id : t
+      val fail : t
+      val refl : t
+      val progress : t -> t
+
+      val seq : t -> t -> t
+      val seqs : t list -> t
+
+      val choice : t -> t -> t
+      val choices : t list -> t
+
+      val try_ : t -> t
+
+      val fix_ : Tac2val.closure -> t Proofview.tactic
+
+      val any : t -> t
+      val repeat : t -> t
+      val one_subterm : t -> t
+      val all_subterms : t -> t
+      val bottomup : t -> t
+      val topdown : t -> t
+      val innermost : t -> t
+      val outermost : t -> t
+      val hints : ident -> t
+      val old_hints : ident -> t
+
+      val one_lemma : preterm -> bool -> t
+
+      val lemmas : preterm list -> t
+
+      val fold : constr -> t
+      val eval : Redexpr.red_expr -> t
+      val matches : pattern -> t
+
+      val tactic :
+        (constr ->
+         constr ->
+         constr option ->
+         Rewrite.rewrite_result Proofview.tactic) ->
+        t
+    end
+
+    val rewrite_strat :
+      Strategy.t ->
+      ident option ->
+      unit Proofview.tactic
+  end
 end

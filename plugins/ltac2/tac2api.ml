@@ -21,6 +21,8 @@ open Proofview.Notations
 (** Helper methods *)
 let v_blk = Valexpr.make_block
 
+let make_to_repr f = Tac2ffi.make_repr (fun _ -> assert false) f
+
 let of_relevance = function
   | Sorts.Relevant -> ValInt 0
   | Sorts.Irrelevant -> ValInt 1
@@ -64,6 +66,21 @@ let to_case_invert = let open Constr in function
 let of_result f = function
 | Inl c -> v_blk 0 [|f c|]
 | Inr e -> v_blk 1 [|Tac2ffi.of_exn e|]
+
+let to_rewrite_success v : Rewrite.rewrite_result_info = match Tac2ffi.to_tuple v with
+| [| rel; rhs; prf |] ->
+   { rew_rel = Tac2ffi.to_constr rel;
+     rew_to = Tac2ffi.to_constr rhs;
+     rew_prf = Tac2ffi.to_constr prf }
+| _ -> assert false
+
+let to_rewrite_result v : Rewrite.rewrite_result = match v with
+| ValBlk (0, [| s |]) ->  Success (to_rewrite_success s)
+| ValInt 0 -> Identity
+| ValInt 1 -> Fail
+| _ -> assert false
+
+let rewrite_result = make_to_repr to_rewrite_result
 
 let return = Proofview.tclUNIT
 
@@ -1540,6 +1557,74 @@ let () = define "pstring_sub" (pstring @-> uint63 @-> uint63 @-> ret pstring) Lt
 let () = define "pstring_cat" (pstring @-> pstring @-> ret pstring) Ltac2Pstring.cat
 let () = define "pstring_equal" (pstring @-> pstring @-> ret bool) Ltac2Pstring.equal
 let () = define "pstring_compare" (pstring @-> pstring @-> ret int) Ltac2Pstring.compare
+
+(** Rewrite *)
+
+module Ltac2Rewrite = struct
+  module Strategy = struct
+    type t = Rewrite.strategy
+
+    let id           = Rewrite.Strategies.id
+    let fail         = Rewrite.Strategies.fail
+    let refl         = Rewrite.Strategies.refl
+    let progress     = Rewrite.Strategies.progress
+    let seq          = Rewrite.Strategies.seq
+    let seqs         = Rewrite.Strategies.seqs
+    let choice       = Rewrite.Strategies.choice
+    let choices      = Rewrite.Strategies.choices
+    let try_         = Rewrite.Strategies.try_
+    let fix_         = Tac2tactics.RewriteStrats.fix
+    let any          = Rewrite.Strategies.any
+    let repeat       = Rewrite.Strategies.repeat
+    let one_subterm  = Rewrite.Strategies.one_subterm
+    let all_subterms = Rewrite.Strategies.all_subterms
+    let bottomup     = Rewrite.Strategies.bottomup
+    let topdown      = Rewrite.Strategies.topdown
+    let innermost    = Rewrite.Strategies.innermost
+    let outermost    = Rewrite.Strategies.outermost
+    let hints        = Tac2tactics.RewriteStrats.hints
+    let old_hints    = Tac2tactics.RewriteStrats.old_hints
+    let one_lemma    = Tac2tactics.RewriteStrats.one_lemma
+    let lemmas       = Tac2tactics.RewriteStrats.lemmas
+    let fold         = Rewrite.Strategies.fold
+    let eval         = Rewrite.Strategies.reduce
+    let matches      = Rewrite.Strategies.matches
+
+    let tactic = Tac2tactics.wrap_tactic_call
+  end
+
+  let rewrite_strat = Tac2tactics.rewrite_strat
+end
+
+let () = define "tac_rewrite_strat" (rewstrategy @-> option ident @-> tac unit) Ltac2Rewrite.rewrite_strat
+
+let () = define "rewstrat_id" (ret rewstrategy) Ltac2Rewrite.Strategy.id
+let () = define "rewstrat_fail" (ret rewstrategy) Ltac2Rewrite.Strategy.fail
+let () = define "rewstrat_refl" (ret rewstrategy) Ltac2Rewrite.Strategy.refl
+let () = define "rewstrat_progress" (rewstrategy @-> ret rewstrategy) Ltac2Rewrite.Strategy.progress
+let () = define "rewstrat_seq" (rewstrategy @-> rewstrategy @-> ret rewstrategy) Ltac2Rewrite.Strategy.seq
+let () = define "rewstrat_seqs" (list rewstrategy @-> ret rewstrategy) Ltac2Rewrite.Strategy.seqs
+let () = define "rewstrat_choice" (rewstrategy @-> rewstrategy @-> ret rewstrategy) Ltac2Rewrite.Strategy.choice
+let () = define "rewstrat_choices" (list rewstrategy @-> ret rewstrategy) Ltac2Rewrite.Strategy.choices
+let () = define "rewstrat_try" (rewstrategy @-> ret rewstrategy) Ltac2Rewrite.Strategy.try_
+let () = define "rewstrat_fix" (closure @-> tac rewstrategy) Ltac2Rewrite.Strategy.fix_
+let () = define "rewstrat_any" (rewstrategy @-> ret rewstrategy) Ltac2Rewrite.Strategy.any
+let () = define "rewstrat_repeat" (rewstrategy @-> ret rewstrategy) Ltac2Rewrite.Strategy.repeat
+let () = define "rewstrat_one_subterm" (rewstrategy @-> ret rewstrategy) Ltac2Rewrite.Strategy.one_subterm
+let () = define "rewstrat_all_subterms" (rewstrategy @-> ret rewstrategy) Ltac2Rewrite.Strategy.all_subterms
+let () = define "rewstrat_bottomup" (rewstrategy @-> ret rewstrategy) Ltac2Rewrite.Strategy.bottomup
+let () = define "rewstrat_topdown" (rewstrategy @-> ret rewstrategy) Ltac2Rewrite.Strategy.topdown
+let () = define "rewstrat_innermost" (rewstrategy @-> ret rewstrategy) Ltac2Rewrite.Strategy.innermost
+let () = define "rewstrat_outermost" (rewstrategy @-> ret rewstrategy) Ltac2Rewrite.Strategy.outermost
+let () = define "rewstrat_hints" (ident @-> ret rewstrategy) Ltac2Rewrite.Strategy.hints
+let () = define "rewstrat_old_hints" (ident @-> ret rewstrategy) Ltac2Rewrite.Strategy.old_hints
+let () = define "rewstrat_one_lemma" (preterm @-> bool @-> ret rewstrategy) Ltac2Rewrite.Strategy.one_lemma
+let () = define "rewstrat_lemmas" (list preterm @-> ret rewstrategy) Ltac2Rewrite.Strategy.lemmas
+let () = define "rewstrat_fold" (constr @-> ret rewstrategy) Ltac2Rewrite.Strategy.fold
+let () = define "rewstrat_eval" (reduction @-> ret rewstrategy) Ltac2Rewrite.Strategy.eval
+let () = define "rewstrat_matches" (pattern @-> ret rewstrategy) Ltac2Rewrite.Strategy.matches
+
+let () = define "rewstrat_tactic" (fun3 constr constr (option constr) rewrite_result @-> ret rewstrategy) Ltac2Rewrite.Strategy.tactic
 (** Ltac2 API *)
 
 module Ltac2 = struct
@@ -1590,4 +1675,5 @@ module Ltac2 = struct
   module Pattern          = Ltac2Pattern
   module Proj             = Ltac2Proj
   module Pstring          = Ltac2Pstring
+  module Rewrite          = Ltac2Rewrite
 end
