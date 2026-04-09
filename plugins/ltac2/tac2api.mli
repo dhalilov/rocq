@@ -659,4 +659,35 @@ module Ltac2 : sig
 
     val print : t -> message
   end
+
+  module TransparentState : sig
+    type t = TransparentState.t
+    type strategy_level = Conv_oracle.level
+
+    val empty : t
+    val full : t
+    val current : unit -> t Proofview.tactic
+
+    val union : t -> t -> t
+    val inter : t -> t -> t
+    val diff : t -> t -> t
+
+    val add_constant : constant -> t -> t
+    val add_proj : projection -> t -> t
+    val add_var : ident -> t -> t
+
+    val remove_constant : constant -> t -> t
+    val remove_proj : projection -> t -> t
+    val remove_var : ident -> t -> t
+
+    val mem_constant : constant -> t -> bool
+    val mem_proj : projection -> t -> bool
+    val mem_var : ident -> t -> bool
+
+    val with_strategy :
+      strategy_level ->
+      GlobRef.t list ->
+      (unit -> 'a Proofview.tactic) ->
+      'a Proofview.tactic
+  end
 end
