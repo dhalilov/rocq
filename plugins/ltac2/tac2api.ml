@@ -1729,6 +1729,22 @@ let () = define "string_sub" (bytes @-> int @-> int @-> tac bytes) Ltac2String.s
 
 let () = define "string_equal" (bytes @-> bytes @-> ret bool) Ltac2String.equal
 let () = define "string_compare" (bytes @-> bytes @-> ret int) Ltac2String.compare
+
+(** Uint63 *)
+
+module Ltac2Uint63 = struct
+  type t = Uint63.t
+
+  let equal = Uint63.equal
+  let compare = Uint63.compare
+  let of_int = Uint63.of_int
+  let print i = Pp.str (Uint63.to_string i)
+end
+
+let () = define "uint63_equal" (uint63 @-> uint63 @-> ret bool) Ltac2Uint63.equal
+let () = define "uint63_compare" (uint63 @-> uint63 @-> ret int) Ltac2Uint63.compare
+let () = define "uint63_of_int" (int @-> ret uint63) Ltac2Uint63.of_int
+let () = define "uint63_print" (uint63 @-> ret pp) Ltac2Uint63.print
 (** Ltac2 API *)
 
 module Ltac2 = struct
@@ -1782,4 +1798,5 @@ module Ltac2 = struct
   module Rewrite          = Ltac2Rewrite
   module Scheme           = Ltac2Scheme
   module String           = Ltac2String
+  module Uint63           = Ltac2Uint63
 end

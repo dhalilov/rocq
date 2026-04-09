@@ -648,4 +648,15 @@ module Ltac2 : sig
     val equal : t -> t -> bool
     val compare : t -> t -> int
   end
+
+  module Uint63 : sig
+    type t = uint63
+
+    val of_int : int -> t
+
+    val equal : t -> t -> bool
+    val compare : t -> t -> int
+
+    val print : t -> message
+  end
 end
