@@ -515,45 +515,6 @@ let () =
   let id = Namegen.mangle_id id in
   Nameops.Fresh.next id avoid
 
-(** Env *)
-
-let () =
-  define "env_get" (list ident @-> ret (option reference)) @@ fun ids ->
-  match ids with
-  | [] -> None
-  | _ :: _ as ids ->
-    let (id, path) = List.sep_last ids in
-    let path = DirPath.make (List.rev path) in
-    let fp = Libnames.make_path path id in
-    try Some (Nametab.global_of_path fp) with Not_found -> None
-
-let () =
-  define "env_expand" (list ident @-> ret (list reference)) @@ fun ids ->
-  match ids with
-  | [] -> []
-  | _ :: _ as ids ->
-    let (id, path) = List.sep_last ids in
-    let path = DirPath.make (List.rev path) in
-    let qid = Libnames.make_qualid path id in
-    Nametab.locate_all qid
-
-let () =
-  define "env_path" (reference @-> tac (list ident)) @@ fun r ->
-  match Nametab.path_of_global r with
-  | fp ->
-    let (path, id) = Libnames.repr_path fp in
-    let path = DirPath.repr path in
-    return (List.rev_append path [id])
-  | exception Not_found ->
-    throw Tac2ffi.err_notfound
-
-let () =
-  define "env_instantiate" (reference @-> tac constr) @@ fun r ->
-  Proofview.tclENV >>= fun env ->
-  Proofview.tclEVARMAP >>= fun sigma ->
-  let (sigma, c) = Evd.fresh_global env sigma r in
-  Proofview.Unsafe.tclEVARS sigma >>= fun () ->
-  return c
 
 (** Ind *)
 

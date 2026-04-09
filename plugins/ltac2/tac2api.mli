@@ -305,4 +305,13 @@ module Ltac2 : sig
       (exn -> exninfo -> 'a Proofview.tactic) ->
       'a Proofview.tactic
   end
+
+  module Env : sig
+    val get : ident list -> GlobRef.t option
+    val expand : ident list -> GlobRef.t list
+
+    val path : GlobRef.t -> ident list Proofview.tactic
+
+    val instantiate : GlobRef.t -> constr Proofview.tactic
+  end
 end

@@ -807,6 +807,49 @@ let () = define "clear_err_info" (err @-> ret err) Ltac2Control.clear_err_info
 let () = define "current_exninfo" (unit @-> tac exninfo) Ltac2Control.current_exninfo
 
 let () = define "print_err" (err @-> ret pp) Ltac2Control.print_err
+
+(** Env *)
+
+module Ltac2Env = struct
+  let get ids =
+    match ids with
+    | [] -> None
+    | _ :: _ as ids ->
+       let (id, path) = List.sep_last ids in
+       let path = DirPath.make (List.rev path) in
+       let fp = Libnames.make_path path id in
+       try Some (Nametab.global_of_path fp) with Not_found -> None
+
+  let expand ids =
+    match ids with
+    | [] -> []
+    | _ :: _ as ids ->
+       let (id, path) = List.sep_last ids in
+       let path = DirPath.make (List.rev path) in
+       let qid = Libnames.make_qualid path id in
+       Nametab.locate_all qid
+
+  let path r =
+    match Nametab.path_of_global r with
+    | fp ->
+       let (path, id) = Libnames.repr_path fp in
+       let path = DirPath.repr path in
+       return (List.rev_append path [id])
+    | exception Not_found ->
+       throw Tac2ffi.err_notfound
+
+  let instantiate r =
+    Proofview.tclENV >>= fun env ->
+    Proofview.tclEVARMAP >>= fun sigma ->
+    let (sigma, c) = Evd.fresh_global env sigma r in
+    Proofview.Unsafe.tclEVARS sigma >>= fun () ->
+    return c
+end
+
+let () = define "env_get" (list ident @-> ret (option reference)) Ltac2Env.get
+let () = define "env_expand" (list ident @-> ret (list reference)) Ltac2Env.expand
+let () = define "env_path" (reference @-> tac (list ident)) Ltac2Env.path
+let () = define "env_instantiate" (reference @-> tac constr) Ltac2Env.instantiate
 (** Ltac2 API *)
 
 module Ltac2 = struct
@@ -844,4 +887,5 @@ module Ltac2 = struct
   module Constr           = Ltac2Constr
   module Constructor      = Ltac2Constructor
   module Control          = Ltac2Control
+  module Env              = Ltac2Env
 end
