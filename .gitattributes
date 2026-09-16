@@ -32,7 +32,7 @@ dune* whitespace=blank-at-eol,tab-in-indent
 *.md whitespace=blank-at-eol,tab-in-indent
 *.merlin whitespace=blank-at-eol,tab-in-indent
 *.ml whitespace=blank-at-eol,tab-in-indent
-*.mlg whitespace=blank-at-eol,tab-in-indent
+*.mlg whitespace=blank-at-eol,tab-in-indent linguist-language=OCaml
 *.mli whitespace=blank-at-eol,tab-in-indent
 *.mll whitespace=blank-at-eol,tab-in-indent
 *.mllib whitespace=blank-at-eol,tab-in-indent
